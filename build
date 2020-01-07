@@ -6,3 +6,6 @@ gcc -I.  -I"/secure/SecureNotes/Tcl_Evolution/jimsh"    -pipe -g3 -O0 -Wall -fPI
 
 
 gcc -pipe -g3 -O0 -Wall -fPIC  -Wl,--export-dynamic  -shared -o invoke.so  invoke.o  /usr/lib/x86_64-linux-gnu/libffi.a 
+
+
+./jimsh  test.tcl
