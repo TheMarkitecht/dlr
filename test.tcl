@@ -17,14 +17,14 @@ set invoke::atype2 10 ;# FFI_TYPE_SINT32
 set invoke::rtype  12 ;# FFI_TYPE_SINT64
 # pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 set myText 556
-pack strP [invoke::addressOfContent myText] -intle $sizeOfPtrBits
-puts strP=[format $ptrFmt [invoke::addressOfContent myText]]
-#set endP 0
-#pack endPP [invoke::addressOfContent endP] -intle $sizeOfPtrBits
-set endPP $nullPtr
+set strPUnpack [invoke::addressOfContent myText]
+pack strP $strPUnpack -intle $sizeOfPtrBits
+puts strP=[format $ptrFmt $strPUnpack]
+set endP $nullPtr
+pack endPP [invoke::addressOfContent endP] -intle $sizeOfPtrBits
 pack radix 10 -intle $(8 * [invoke::sizeOfInt])
 puts $myText=[invoke::callToNative [invoke::getFnAddr]]
 # unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
-#set endPUnpack [unpack $endP -intle 0 $sizeOfPtrBits]
-#puts endP=[format $ptrFmt $endPUnpack]
-#puts len=$($endPUnpack - $strP)
+set endPUnpack [unpack $endP -intle 0 $sizeOfPtrBits]
+puts endP=[format $ptrFmt $endPUnpack]
+puts len=$($endPUnpack - $strPUnpack)

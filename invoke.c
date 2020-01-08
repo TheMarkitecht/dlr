@@ -171,6 +171,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     // execute call.
     ffi_call(&client->cif, fn, (void*)&client->returnVal, (void**)client->argPtrs);
     
+    //todo: move all conversion out to script.
     // convert return value.
     if (rtype == &ffi_type_sint64) {
         Jim_SetResultInt(itp, *(jim_wide*)client->returnVal);
