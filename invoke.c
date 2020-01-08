@@ -4,19 +4,8 @@
 #include <dstring.h>
 #include <ffi.h>
 
-#define MAX_ARGS 20
-
 typedef unsigned char u8;
 typedef void (*ffiFnP)(void);
-
-typedef struct {
-    // library-wide data structures.
-    ffi_cif cif;
-    void* argPtrs[MAX_ARGS];
-} ivkClientT;
-typedef ivkClientT* ivkClientP;
-ivkClientT clientStorage; //todo: move to a Jim_Malloc'd area.  and clear it.
-ivkClientP client = &clientStorage;
 
 // map type ID codes to type metadata structs.
 // to prevent confusion, the order here corresponds exactly to the indices given by
@@ -140,6 +129,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     
     // fill argPtrs with pointers to the content of designated script vars.
     // those vars are the buffers for the content during this native call.
+    void* argPtrs[nArgs];
     char buf[20];
     Jim_Obj* o; 
     Jim_ListIter iter;
@@ -151,7 +141,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
             Jim_SetResultString(itp, "Argument variable not found.", -1);
             return JIM_ERR;
         }
-        client->argPtrs[n] = v->bytes;
+        argPtrs[n] = v->bytes;
         
         snprintf(buf, 20, "invoke::atype%d", n);
         if (varToType(itp, buf, &atypes[n]) != JIM_OK) return JIM_ERR;
@@ -161,7 +151,8 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     
     // prep CIF.
 // ffi_status  ffi_prep_cif(ffi_cif *cif, ffi_abi abi, unsigned int nargs,ffi_type *rtype, ffi_type **atypes);
-    ffi_status err = ffi_prep_cif(&client->cif, FFI_DEFAULT_ABI, (unsigned int)nArgs, rtype, atypes);
+    ffi_cif cif;
+    ffi_status err = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, (unsigned int)nArgs, rtype, atypes);
     if (err != FFI_OK) {
         Jim_SetResultString(itp, "Failed to prep FFI CIF for call.", -1);
         return JIM_ERR;
@@ -182,7 +173,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     }    
     
     // execute call.
-    ffi_call(&client->cif, fn, (void*)resultBuf, (void**)client->argPtrs);
+    ffi_call(&cif, fn, (void*)resultBuf, (void**)argPtrs);
     
     return JIM_OK;
 }
