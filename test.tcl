@@ -23,7 +23,9 @@ puts strP=[format $ptrFmt $strPUnpack]
 set endP $nullPtr
 pack endPP [invoke::addressOfContent endP] -intle $sizeOfPtrBits
 pack radix 10 -intle $(8 * [invoke::sizeOfInt])
-puts $myText=[invoke::callToNative [invoke::getFnAddr]]
+invoke::callToNative [invoke::getFnAddr]
+set resultUnpack [unpack $invoke::result -intle 0 $(8 * [invoke::sizeOfInt])]
+puts $myText=$resultUnpack
 # unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 set endPUnpack [unpack $endP -intle 0 $sizeOfPtrBits]
 puts endP=[format $ptrFmt $endPUnpack]

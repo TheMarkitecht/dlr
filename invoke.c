@@ -13,7 +13,6 @@ typedef struct {
     // library-wide data structures.
     ffi_cif cif;
     void* argPtrs[MAX_ARGS];
-    u8 returnVal[1000]; //todo
 } ivkClientT;
 typedef ivkClientT* ivkClientP;
 ivkClientT clientStorage; //todo: move to a Jim_Malloc'd area.  and clear it.
@@ -167,17 +166,24 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "Failed to prep FFI CIF for call.", -1);
         return JIM_ERR;
     }  
+
+    // arrange space for return value.
+    int resultBufLen = (int)rtype->size + 1; // extra 1 for null terminator is not needed for invoke, but may be needed by any further script operations on the object.
+    char* resultBuf = Jim_Alloc(resultBufLen);
+    if (resultBuf == NULL) {
+        Jim_SetResultString(itp, "Out of memory while allocating result buffer.", -1);
+        return JIM_ERR;
+    }  
+    resultBuf[resultBufLen] = 0; // last-ditch safety for any further script operations on the object.
+    Jim_Obj* resultValueObj = Jim_NewStringObjNoAlloc(itp, resultBuf, (int)rtype->size); // extra 1 is not included here.
+    if (Jim_SetGlobalVariableStr(itp, "::invoke::result", resultValueObj) != JIM_OK) {
+        Jim_SetResultString(itp, "Failed to set variable for result buffer.", -1);
+        return JIM_ERR;
+    }    
     
     // execute call.
-    ffi_call(&client->cif, fn, (void*)&client->returnVal, (void**)client->argPtrs);
+    ffi_call(&client->cif, fn, (void*)resultBuf, (void**)client->argPtrs);
     
-    //todo: move all conversion out to script.
-    // convert return value.
-    if (rtype == &ffi_type_sint64) {
-        Jim_SetResultInt(itp, *(jim_wide*)client->returnVal);
-    } else {
-        //todo
-    }
     return JIM_OK;
 }
 
