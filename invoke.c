@@ -168,14 +168,14 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     }  
 
     // arrange space for return value.
-    int resultBufLen = (int)rtype->size + 1; // extra 1 for null terminator is not needed for invoke, but may be needed by any further script operations on the object.
-    char* resultBuf = Jim_Alloc(resultBufLen);
+    int resultLen = (int)rtype->size; 
+    char* resultBuf = Jim_Alloc(resultLen + 1); // extra 1 for null terminator is not needed for invoke, but may be needed by any further script operations on the object.
     if (resultBuf == NULL) {
         Jim_SetResultString(itp, "Out of memory while allocating result buffer.", -1);
         return JIM_ERR;
     }  
-    resultBuf[resultBufLen] = 0; // last-ditch safety for any further script operations on the object.
-    Jim_Obj* resultValueObj = Jim_NewStringObjNoAlloc(itp, resultBuf, (int)rtype->size); // extra 1 is not included here.
+    resultBuf[resultLen] = 0; // last-ditch safety for any further script operations on the object.
+    Jim_Obj* resultValueObj = Jim_NewStringObjNoAlloc(itp, resultBuf, resultLen);
     if (Jim_SetGlobalVariableStr(itp, "::invoke::result", resultValueObj) != JIM_OK) {
         Jim_SetResultString(itp, "Failed to set variable for result buffer.", -1);
         return JIM_ERR;

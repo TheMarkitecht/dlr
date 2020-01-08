@@ -9,3 +9,5 @@ gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o invoke.s
 
 
 ./jimsh  test.tcl
+
+valgrind  -q  ./jimsh  test.tcl
