@@ -13,13 +13,13 @@ pack nullPtr 0 -intle $sizeOfPtrBits
 invoke::prepMetaBlob  meta  [invoke::getFnAddr]  result  12  {strP endPP radix}  {14 14 10}
 loop attempt 0 5 {
     set myText $(550 + $attempt * 3)
-    set strPUnpack [invoke::addressOfContent myText]
+    set strPUnpack [invoke::addressOf myText]
     puts strP=[format $ptrFmt $strPUnpack]
     # pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
     pack strP $strPUnpack -intle $sizeOfPtrBits
     
     set endP $nullPtr
-    pack endPP [invoke::addressOfContent endP] -intle $sizeOfPtrBits
+    pack endPP [invoke::addressOf endP] -intle $sizeOfPtrBits
     
     pack radix 10 -intle $(8 * [invoke::sizeOfInt])
     

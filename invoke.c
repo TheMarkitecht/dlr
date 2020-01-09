@@ -80,8 +80,7 @@ int sizeOfPtr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-//todo: rename to contentPtr
-int addressOfContent(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int addressOf(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum { 
         cmdIX = 0,
         varNameIX,
@@ -269,7 +268,7 @@ int Jim_invokeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "invoke::getFnAddr", getFnAddr, NULL, NULL);
     Jim_CreateCommand(itp, "invoke::sizeOfInt", sizeOfInt, NULL, NULL);
     Jim_CreateCommand(itp, "invoke::sizeOfPtr", sizeOfPtr, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::addressOfContent", addressOfContent, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::addressOf", addressOf, NULL, NULL);
     
     return JIM_OK;
 }
