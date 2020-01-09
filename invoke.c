@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <dstring.h>
 #include <ffi.h>
 
 typedef uint8_t u8;
