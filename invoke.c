@@ -121,8 +121,6 @@ int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, 
     if (newBufP) *newBufP = (void*)buf;
     if (newObjP) *newObjP = valueObj;
     
-for (int i = 0; i <= len; i++) buf[i] = 0; //todo delete
-    
     return JIM_OK;
 }
 
@@ -226,7 +224,6 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "Invalid metaBlob content.", -1);
         return JIM_ERR;
     }
-//todo: metablob content is garbled in between prep and here!  i bet it got recycled because refcount was 0.
     
     // fill argPtrs with pointers to the content of designated script vars.
     // those vars are the buffers for the packed native binary content during this native call.
