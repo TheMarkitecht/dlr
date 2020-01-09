@@ -47,7 +47,7 @@ typedef struct {
 static const char METABLOB_SIGNATURE[] = "meta";
 
 // this function's name is based on the library's actual filename.  Jim requires that. 
-extern int Jim_invokeNativeInit(Jim_Interp* itp);
+extern int Jim_dlrNativeInit(Jim_Interp* itp);
 
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
@@ -151,7 +151,7 @@ int addrOf(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 // if newBufP is not null, sets *newBufP to point to the structure.
 // if newObjP is not null, sets *newObjP to point to the new Jim_Obj.
 int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, Jim_Obj** newObjP) {
-    char* buf = Jim_Alloc(len + 1); // extra 1 for null terminator is not needed for invoke, but may be needed by any further script operations on the object.
+    char* buf = Jim_Alloc(len + 1); // extra 1 for null terminator is not needed for dlr, but may be needed by any further script operations on the object.
     if (buf == NULL) {
         Jim_SetResultString(itp, "Out of memory while allocating buffer.", -1);
         return JIM_ERR;
@@ -309,22 +309,22 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-int Jim_invokeNativeInit(Jim_Interp* itp) {
+int Jim_dlrNativeInit(Jim_Interp* itp) {
     //ivkClientT* client = client_alloc(itp);
 
 //todo: Jim_PackageRequire a specific Jim version.
 
-    if (Jim_PackageProvide(itp, "invokeNative", "0.1", 0) != JIM_OK) {
+    if (Jim_PackageProvide(itp, "dlrNative", "0.1", 0) != JIM_OK) {
         return JIM_ERR;
     }
     
-    Jim_CreateCommand(itp, "invoke::native::loadLib", loadLib, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::callToNative", callToNative, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::fnAddr", fnAddr, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::sizeOfInt", sizeOfInt, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::sizeOfPtr", sizeOfPtr, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::native::addrOf", addrOf, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::loadLib", loadLib, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::sizeOfInt", sizeOfInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::sizeOfPtr", sizeOfPtr, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
     
     return JIM_OK;
 }

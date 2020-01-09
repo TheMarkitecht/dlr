@@ -28,9 +28,9 @@ b callToNative
 #       that's  &atypes in prepMetaBlob.
 #display *((metaBlobT*)0x5555555dbab0)->cif.arg_types
 #b Jim_FreeObj if objPtr == 0x5555555dbb00
-#b invoke.c:119
-#b invoke.c:191
-#b invoke.c:214
+#b dlrNative.c:119
+#b dlrNative.c:191
+#b dlrNative.c:214
 #p script->linenr
 
 c

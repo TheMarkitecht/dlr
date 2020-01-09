@@ -2,15 +2,15 @@
 set -e
 set -x
 
-# "invoke" extension for Jim.
-gcc -I.  -I"/secure/SecureNotes/Tcl_Evolution/jimsh"    -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o invokeNative.o  invokeNative.c
+# "dlr" extension for Jim.
+gcc -I.  -I"/secure/SecureNotes/Tcl_Evolution/jimsh"    -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o dlrNative.o  dlrNative.c
 
-gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o invokeNative.so  invokeNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
+gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
 
-# invokeTestLib.so
-gcc -I.  -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o invokeTestLib.o  invokeTestLib.c
+# dlrTestLib.so
+gcc -I.  -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o dlrTestLib.o  dlrTestLib.c
 
-gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o invokeTestLib.so  invokeTestLib.o 
+gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o dlrTestLib.so  dlrTestLib.o 
 
 # test runs
 ./jimsh  test.tcl
