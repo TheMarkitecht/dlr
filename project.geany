@@ -1,0 +1,57 @@
+[editor]
+line_wrapping=false
+line_break_column=72
+auto_continue_multiline=false
+
+[file_prefs]
+final_new_line=true
+ensure_convert_new_lines=false
+strip_trailing_spaces=false
+replace_tabs=false
+
+[indentation]
+indent_width=4
+indent_type=0
+indent_hard_tab_width=8
+detect_indent=false
+detect_indent_width=false
+indent_mode=2
+
+[project]
+name=project
+base_path=/secure/SecureNotes/Tcl_Evolution/dlr
+description=
+file_patterns=
+
+[long line marker]
+long_line_behaviour=1
+long_line_column=72
+
+[files]
+current_page=1
+FILE_NAME_0=2911;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FinvokeNative.c;0;4
+FILE_NAME_1=83;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Finvoke.tcl;0;4
+FILE_NAME_2=613;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Ftest.tcl;0;4
+FILE_NAME_3=187;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FinvokeTestLib.c;0;4
+FILE_NAME_4=268;Sh;0;EUTF-8;0;1;1;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Fbuild;0;4
+FILE_NAME_5=64615;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim.c;0;4
+FILE_NAME_6=28049;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim.h;0;4
+FILE_NAME_7=3104;C;0;EUTF-8;0;1;0;%2Fusr%2Finclude%2Fx86_64-linux-gnu%2Fffi.h;0;4
+FILE_NAME_8=74;None;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2F.gdbinit;0;4
+FILE_NAME_9=1895;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim-load.c;0;4
+FILE_NAME_10=3084;None;0;EUTF-8;0;1;1;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2FREADME.namespaces;0;4
+
+[VTE]
+last_dir=/home
+
+[build-menu]
+NF_00_LB=_Make
+NF_00_CM=./build
+NF_00_WD=%p
+NF_01_LB=Make Custom _Target...
+NF_01_CM=make 
+NF_01_WD=%p
+EX_00_LB=_Execute
+EX_00_CM=../../jimsh/jimsh  test.tcl
+EX_00_WD=%p
+error_regex=at file "(.*)", line ([0-9]+)|^(/.+):([0-9]+):|\\((.+):([0-9]+)\\)
