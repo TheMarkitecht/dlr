@@ -51,7 +51,7 @@ extern int Jim_invokeNativeInit(Jim_Interp* itp);
 
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
-int loadLibNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int loadLib(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum { 
         cmdIX = 0,
         fileNamePathIX,
@@ -318,13 +318,13 @@ int Jim_invokeNativeInit(Jim_Interp* itp) {
         return JIM_ERR;
     }
     
-    Jim_CreateCommand(itp, "invoke::loadLibNative", loadLibNative, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::prepMetaBlob", prepMetaBlob, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::callToNative", callToNative, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::fnAddr", fnAddr, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::sizeOfInt", sizeOfInt, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::sizeOfPtr", sizeOfPtr, NULL, NULL);
-    Jim_CreateCommand(itp, "invoke::addrOf", addrOf, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::loadLib", loadLib, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::callToNative", callToNative, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::fnAddr", fnAddr, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::sizeOfInt", sizeOfInt, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::sizeOfPtr", sizeOfPtr, NULL, NULL);
+    Jim_CreateCommand(itp, "invoke::native::addrOf", addrOf, NULL, NULL);
     
     return JIM_OK;
 }
