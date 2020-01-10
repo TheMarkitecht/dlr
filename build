@@ -3,7 +3,7 @@ set -e
 set -x
 
 # "dlr" extension for Jim.
-gcc -I.  -I"/secure/SecureNotes/Tcl_Evolution/jimsh"    -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o dlrNative.o  dlrNative.c
+gcc -I.  -I"../jimsh"    -pipe -g3 -O0 -Wall -fPIC -std=c11 -c -o dlrNative.o  dlrNative.c
 
 gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
 
