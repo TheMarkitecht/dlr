@@ -28,17 +28,18 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=1
-FILE_NAME_0=0;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FdlrNative.c;0;4
-FILE_NAME_1=0;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Fdlr.tcl;0;4
-FILE_NAME_2=38;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Ftest.tcl;0;4
-FILE_NAME_3=0;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FdlrTestLib.c;0;4
-FILE_NAME_4=492;Sh;0;EUTF-8;0;1;1;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Fbuild;0;4
+current_page=10
+FILE_NAME_0=6858;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FdlrNative.c;0;4
+FILE_NAME_1=3721;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Fdlr.tcl;0;4
+FILE_NAME_2=2221;Tcl;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Ftest.tcl;0;4
+FILE_NAME_3=900;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FdlrTestLib.c;0;4
+FILE_NAME_4=23;Sh;0;EUTF-8;0;1;1;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2Fbuild;0;4
 FILE_NAME_5=64615;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim.c;0;4
-FILE_NAME_6=28049;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim.h;0;4
+FILE_NAME_6=10809;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim.h;0;4
 FILE_NAME_7=3104;C;0;EUTF-8;0;1;0;%2Fusr%2Finclude%2Fx86_64-linux-gnu%2Fffi.h;0;4
-FILE_NAME_8=864;None;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2F.gdbinit;0;4
+FILE_NAME_8=208;None;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2F.gdbinit;0;4
 FILE_NAME_9=1895;C;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fjimsh%2Fjim-load.c;0;4
+FILE_NAME_10=1518;Markdown;0;EUTF-8;0;1;0;%2Fsecure%2FSecureNotes%2FTcl_Evolution%2Fdlr%2FREADME.md;0;4
 
 [VTE]
 last_dir=/home
@@ -53,4 +54,4 @@ NF_01_WD=%p
 EX_00_LB=_Execute
 EX_00_CM=../../jimsh/jimsh  test.tcl
 EX_00_WD=%p
-error_regex=at file "(.*)", line ([0-9]+)|^(/.+):([0-9]+):|\\((.+):([0-9]+)\\)
+error_regex=at file "(.*)", line ([0-9]+)|^(.+[^0-9]):([0-9]+):|\\((.+):([0-9]+)\\)

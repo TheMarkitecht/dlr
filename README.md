@@ -20,6 +20,7 @@ It lets your Jim scripts dynamically call a shared object library (.so file) of 
 * Supports calling only one direction: from script to native code.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  All the surrounding features are implemented in a script library.
+* Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C.
 * Ultra-simple build process.
 * Works with Jim's `package require` command.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
@@ -38,9 +39,10 @@ See [build](build) script.
 
 ## Future Direction:
 
-* Add a modular packing/unpacking framework in the script library.
+* Expand the modular packing/unpacking framework in the script library, for structs etc.
 * Add a concise syntax for declaring the call.
 * Test on ARM embedded systems.
+* Speed improvements?
 * Maybe let the script library generate C code to speed up your call, after your call is known to work well.
 
 ## Legal stuff:

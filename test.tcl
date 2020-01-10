@@ -21,37 +21,50 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
-puts $::auto_path
+proc assert {exp} {
+    set truth [uplevel 1 [list expr $exp]]
+    if { ! $truth} {
+        error "ASSERT FAILED: $exp"
+    }
+}
+
+puts paths=$::auto_path
 
 package require dlr
 
-puts sizeOfInt=[::dlr::sizeOfInt]
-puts sizeOfPtr=[::dlr::sizeOfPtr]
+puts bitsOfInt=$::dlr::bitsOfInt
+puts bitsOfPtr=$::dlr::bitsOfPtr
 
 ::dlr::loadLib  testLib  ./dlrTestLib.so
 
 # strtol test
+#todo: see how many times the interp hashes these long strings.  need to shorten for speed??  or move to a dict or list?
+set ::dlr::lib::testLib::test_strtol::parmOrder {
+    ::dlr::lib::testLib::test_strtol::parm::strP::native
+    ::dlr::lib::testLib::test_strtol::parm::endPP::native
+    ::dlr::lib::testLib::test_strtol::parm::radix::native
+}
 ::dlr::prepMetaBlob  meta  [::dlr::fnAddr  test_strtol  testLib]  \
-    result  12  {strP endPP radix}  {14 14 10}
+    ::dlr::lib::testLib::test_strtol::result  12  \
+    $::dlr::lib::testLib::test_strtol::parmOrder  {14 14 10}
 loop attempt 0 5 {
-    set myText $(550 + $attempt * 3)
-    set strPUnpack [::dlr::addrOf myText]
-    puts strP=[format $::dlr::ptrFmt $strPUnpack]
-    # pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
-    pack strP $strPUnpack -intle $::dlr::sizeOfPtrBits
-    
-    set endP $::dlr::nullPtr
-    pack endPP [::dlr::addrOf endP] -intle $::dlr::sizeOfPtrBits
-    
-    pack radix 10 -intle $(8 * [::dlr::sizeOfInt])
+    set myNum $(550 + $attempt * 3)
+    # addrOf requires a string, so it will implicitly use the string representation of myNum.
+    puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
+    set endP $::dlr::null
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
+    ::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
     
     ::dlr::callToNative  meta
     
-    # unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
-    set resultUnpack [unpack $result -intle 0 $(8 * [::dlr::sizeOfInt])]
-    puts $myText=$resultUnpack
+    set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]
+    puts $myNum=$resultUnpack
+    assert {$resultUnpack == $myNum}
     
-    set endPUnpack [unpack $endP -intle 0 $::dlr::sizeOfPtrBits]
+    set endPUnpack [unpack $endP -intle 0 $::dlr::bitsOfPtr]
+    set len $($endPUnpack - [::dlr::addrOf myNum])
     puts endP=[format $::dlr::ptrFmt $endPUnpack]
-    puts len=$($endPUnpack - $strPUnpack)
+    puts len=$len
+    assert {$len == [string length $myNum]}
 }

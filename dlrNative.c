@@ -138,18 +138,51 @@ int fnAddr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-int sizeOfInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    Jim_SetResultInt(itp, (jim_wide)sizeof(int));
+int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    Jim_Obj* lens[] = {
+        Jim_NewStringObj(itp, "Char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.
+        Jim_NewStringObj(itp, "Short", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(short)),
+        Jim_NewStringObj(itp, "Int", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(int)),
+        Jim_NewStringObj(itp, "Long", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(long)),
+        Jim_NewStringObj(itp, "LongLong", -1),      Jim_NewIntObj(itp, (jim_wide)sizeof(long long)),
+        Jim_NewStringObj(itp, "Ptr", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(void*)),
+        Jim_NewStringObj(itp, "SizeT", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(size_t)),
+        Jim_NewStringObj(itp, "Float", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(float)),
+        Jim_NewStringObj(itp, "Double", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(double)),
+        Jim_NewStringObj(itp, "LongDouble", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(long double)),
+    };
+    int numTypes = sizeof(lens) / sizeof(Jim_Obj*);
+    for (int i = 0; i < numTypes; i++) {
+        if (lens[i] == NULL) {
+            Jim_SetResultString(itp, "Couldn't create new object.", -1);
+            return JIM_ERR;
+        }
+    }
+    Jim_Obj* d = Jim_NewDictObj(itp, lens, numTypes);
+    if (d == NULL) {
+        Jim_SetResultString(itp, "Couldn't create new dictionary.", -1);
+        return JIM_ERR;
+    }
+    Jim_SetResult(itp, d);
     return JIM_OK;
 }
 
-int sizeOfPtr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    Jim_SetResultInt(itp, (jim_wide)sizeof(void*));
-    return JIM_OK;
-}
-
-// returns (to the script) an integer which is the memory address of the 
-// content bytes of the given variable name.
+/*
+addrOf() returns (to the script) an integer which is the memory address of the 
+content bytes of the given variable name.  this always refers to the 
+string representation, and none of Jim's internal representations.
+if the variable object's string representation is outdated due to
+previous script actions, then this command automatically updates it
+from the object's internal reps before extracting the address.
+(that's normal behavior for any Tcl command that requires a string.)
+thus addrOf() always returns a pointer to a string buffer.  
+in C, that is a "char*".  the buffer contains a string of ASCII or
+UTF8, or if it was prepared by packing, it contains a binary blob.
+note: if the string rep is already up to date, then it won't be touched,
+and will yield the same address as the last call to addrOf().  that's
+the case if the script hasn't assigned to that variable at all since 
+the last call to addrOf().
+*/
 int addrOf(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum { 
         cmdIX = 0,
@@ -347,8 +380,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::sizeOfInt", sizeOfInt, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::sizeOfPtr", sizeOfPtr, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
     
     return JIM_OK;
