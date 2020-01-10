@@ -318,11 +318,11 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         metaBlobVarNameIX,
         argCount
     };
-    
-    if (objc != argCount) {
-        Jim_SetResultString(itp, "Wrong # args.  Should be: callToNative metaBlobVarName", -1);
-        return JIM_ERR;
-    }
+    //todo
+    //if (objc != argCount) {
+        //Jim_SetResultString(itp, "Wrong # args.  Should be: callToNative metaBlobVarName", -1);
+        //return JIM_ERR;
+    //}
 
     // find metaBlob for this native function.
     Jim_Obj* metaBlobObj = Jim_GetVariable(itp, objv[metaBlobVarNameIX], JIM_NONE);
@@ -343,15 +343,17 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     // and their Jim_Obj's replaced with new ones,
     // because the script assigned them new values since then.
     unsigned nArgs = meta->cif.nargs;
+    unsigned ix = argCount;
     void* argPtrs[nArgs];
-    for (unsigned n = 0; n < nArgs; n++) {
+    for (unsigned n = 0; n < nArgs; n++, ix++) {
         // using internalRep here for a little more speed.
-        Jim_Obj* v = Jim_GetGlobalVariable(itp, 
-            meta->nativeParmsList->internalRep.listValue.ele[n], JIM_NONE);
+  
+        Jim_Obj* v = Jim_GetVariable(itp, objv[ix], JIM_NONE);
         if (v == NULL) {
             Jim_SetResultString(itp, "Native argument variable not found.", -1);
             return JIM_ERR;
         }
+  
         // const is discarded here.  that is required, to be able to pass a large value
         // either in or out of a native function, while passing by pointer.
         argPtrs[n] = (void*)Jim_GetString(v, NULL); 

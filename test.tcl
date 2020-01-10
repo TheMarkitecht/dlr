@@ -38,7 +38,8 @@ puts bitsOfPtr=$::dlr::bitsOfPtr
 ::dlr::loadLib  testLib  ./dlrTestLib.so
 
 # strtol test
-#todo: see how many times the interp hashes these long strings.  need to shorten for speed??  or move to a dict or list?
+#todo: see how many times the interp hashes these long strings.  need to shorten for speed?? 
+# shortening didn't help.  move to a dict or list?
 set ::dlr::lib::testLib::test_strtol::parmOrder {
     ::dlr::lib::testLib::test_strtol::parm::strP::native
     ::dlr::lib::testLib::test_strtol::parm::endPP::native
