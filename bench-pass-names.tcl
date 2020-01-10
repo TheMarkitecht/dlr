@@ -38,24 +38,23 @@ puts bitsOfPtr=$::dlr::bitsOfPtr
 ::dlr::loadLib  testLib  ./dlrTestLib.so
 
 # strtol speed test
-set ::dlr::lib::testLib::test_strtol::parmOrder {
-    ::dlr::lib::testLib::test_strtol::parm::strP::native
-    ::dlr::lib::testLib::test_strtol::parm::endPP::native
-    ::dlr::lib::testLib::test_strtol::parm::radix::native
+#todo: see how many times the interp hashes these long strings.  need to shorten for speed??  or move to a dict or list?
+set ::parmOrder {
+    ::strP
+    ::endPP
+    ::radix
 }
 ::dlr::prepMetaBlob  meta  [::dlr::fnAddr  test_strtol  testLib]  \
-    ::dlr::lib::testLib::test_strtol::result  12  \
-    $::dlr::lib::testLib::test_strtol::parmOrder  {14 14 10}
+    ::result  12  \
+    $::parmOrder  {14 14 10}
 set myNum $(550)
-# addrOf requires a string, so it will implicitly use the string representation of myNum.
-puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
+::dlr::pack::ptr  ::strP  [::dlr::addrOf myNum]
 set endP $::dlr::null
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
-::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
-loop attempt 0 3000 {   
-    ::dlr::callToNative  meta  
+::dlr::pack::ptr  ::endPP  [::dlr::addrOf endP]
+::dlr::pack::int  ::radix  10
+loop attempt 0 30000000 {   
+    ::dlr::callToNative  meta  strP  endPP  radix
 }
-set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]
+set resultUnpack [::dlr::unpack::int $::result]
 puts $myNum=$resultUnpack
 assert {$resultUnpack == $myNum}
