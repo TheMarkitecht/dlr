@@ -32,7 +32,7 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
 #define DLR_VERSION_STRING "0.2"
 
-//todo: re-run all tests, and valgrind, with full compiler optimization.  code may behave differently.
+//todo: periodically re-run all tests, and valgrind, with full compiler optimization on dlr and on the interp.  code may behave differently.
 
 typedef uint8_t u8;
 typedef uint32_t u32;
