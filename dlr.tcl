@@ -40,7 +40,7 @@ foreach typ $::dlr::simpleTypeNames {
 }
 
 # aliases to pass through to native implementations of certain dlr system commands.
-foreach cmd {prepMetaBlob callToNative createBufferVar addrOf} {
+foreach cmd {prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
     alias  ::dlr::$cmd  ::dlr::native::$cmd
 }
 

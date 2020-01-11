@@ -21,7 +21,7 @@ r
 
 #b prepMetaBlob
 b callToNative
-#b test_strtol
+#b strtolWrapper
 #b createBufferVar
 #p *meta->cif.arg_types 
 # during break at 191:  watch -l meta->cif.arg_types[0]

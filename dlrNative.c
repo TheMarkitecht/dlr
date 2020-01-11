@@ -32,6 +32,8 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
 #define DLR_VERSION_STRING "0.2"
 
+//todo: re-run all tests, and valgrind, with full compiler optimization.  code may behave differently.
+
 typedef uint8_t u8;
 typedef uint32_t u32;
 typedef void (*ffiFnP)(void);
@@ -203,6 +205,71 @@ int addrOf(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         return JIM_ERR;
     }
     Jim_SetResultInt(itp, (jim_wide)Jim_GetString(v, NULL));
+    return JIM_OK;
+}
+
+// provides direct use of the system heap through Jim_Alloc(), for scripts.
+// size is expected to be a script integer, not binary packed.
+// heap pointer is returned as a script integer, not binary packed.
+// throws a script error if the alloc fails.
+// this command creates easy opportunities for memory leaks and other bugs,
+// and blatant tests of such leaks have somehow eluded valgrind!
+// therefore createBufferVar is recommended instead.  that way the interpreter 
+// tracks the memory block and can collect it automatically.
+// Jim's pack command works easily with that.
+// Jim references should work well with that too.
+int allocHeap(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum { 
+        cmdIX = 0,
+        sizeIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+
+    jim_wide size;
+    if (Jim_GetWide(itp, objv[sizeIX], &size) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected size integer but got other data.", -1);
+        return JIM_ERR;
+    }
+    void* ptr = NULL;
+    if (size > 0) {
+        ptr = Jim_Alloc((int)size);
+        if (ptr == NULL) {
+            Jim_SetResultString(itp, "Alloc failed! Maybe out of heap memory.", -1);
+            return JIM_ERR;
+        }
+    }        
+    Jim_SetResultInt(itp, (jim_wide)ptr);
+    return JIM_OK;
+}
+
+// provides direct use of the system heap through Jim_Free(), for scripts.
+// pointer is expected to be a script integer, not binary packed.
+// silently ignores a NULL pointer.
+int freeHeap(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum { 
+        cmdIX = 0,
+        ptrIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+
+    jim_wide ptr;
+    if (Jim_GetWide(itp, objv[ptrIX], &ptr) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected heap pointer but got other data.", -1);
+        return JIM_ERR;
+    }
+    void* p = (void*)ptr;
+    if (p != NULL)
+        Jim_Free(p);
     return JIM_OK;
 }
 
@@ -408,7 +475,9 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
-    
+    Jim_CreateCommand(itp, "dlr::native::allocHeap", allocHeap, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
+
     return JIM_OK;
 }
 

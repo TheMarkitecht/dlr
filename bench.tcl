@@ -38,21 +38,21 @@ puts bitsOfPtr=$::dlr::bitsOfPtr
 ::dlr::loadLib  testLib  ./dlrTestLib.so
 
 # strtol speed test
-set ::dlr::lib::testLib::test_strtol::parmOrder {
-    ::dlr::lib::testLib::test_strtol::parm::strP
-    ::dlr::lib::testLib::test_strtol::parm::endPP
-    ::dlr::lib::testLib::test_strtol::parm::radix
+set ::dlr::lib::testLib::strtolWrapper::parmOrder {
+    ::dlr::lib::testLib::strtolWrapper::parm::strP
+    ::dlr::lib::testLib::strtolWrapper::parm::endPP
+    ::dlr::lib::testLib::strtolWrapper::parm::radix
 }
-::dlr::prepMetaBlob  meta  [::dlr::fnAddr  test_strtol  testLib]  \
-    ::dlr::lib::testLib::test_strtol::result  12  \
-    $::dlr::lib::testLib::test_strtol::parmOrder  {14 14 10}
+::dlr::prepMetaBlob  meta  [::dlr::fnAddr  strtolWrapper  testLib]  \
+    ::dlr::lib::testLib::strtolWrapper::result  12  \
+    $::dlr::lib::testLib::strtolWrapper::parmOrder  {14 14 10}
 set myNum $(550)
 # addrOf requires a string, so it will implicitly use the string representation of myNum.
 puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP  [::dlr::addrOf myNum]
+::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrapper::parm::strP  [::dlr::addrOf myNum]
 set endP $::dlr::null
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP  [::dlr::addrOf endP]
-::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix  10
+::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrapper::parm::endPP  [::dlr::addrOf endP]
+::dlr::pack::int  ::dlr::lib::testLib::strtolWrapper::parm::radix  10
 loop attempt 0 30000000 {   
     ::dlr::callToNative  meta  
 }

@@ -15,6 +15,8 @@ gcc -pipe -g3 -O0 -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared -o dlrTestL
 # test runs
 ./jimsh  test.tcl
 
-valgrind  -q  ./jimsh  test.tcl
+valgrind  -q  --leak-check=full  --leak-resolution=high  \
+    --show-leak-kinds=definite,possible  --errors-for-leak-kinds=definite,possible  \
+    ./jimsh  test.tcl
 
 # time ./jimsh bench.tcl

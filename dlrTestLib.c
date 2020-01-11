@@ -32,10 +32,17 @@ typedef uint32_t u32;
 
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
-extern long int test_strtol(const char *nptr, char **endptr, int base);
-
-long int test_strtol(const char *nptr, char **endptr, int base) {
-    // wrapper to help debugging.
+// wrapper of a simple libc function, to help debugging and smoke testing.
+extern long int strtolWrapper(const char *nptr, char **endptr, int base);
+long int strtolWrapper(const char *nptr, char **endptr, int base) {
     return strtol(nptr, endptr, base);
+}
+
+// pass a struct or array by value.  return an element.
+typedef struct {int a, b, c, d; } indexByValueT;
+extern long int indexByValue(const indexByValueT st, const int ix);
+long int indexByValue(const indexByValueT st, const int ix) {
+    const int* p = &st.a;
+    return p[ix];
 }
 
