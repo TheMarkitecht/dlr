@@ -64,7 +64,7 @@ loop attempt 0 300000 {
     set endPUnpack [unpack $endP -intle 0 $::dlr::bitsOfPtr]
     set len $($endPUnpack - [::dlr::addrOf myNum])
     assert {$len == [string length $myNum]}
-# this breaks the test:
+# this breaks the test if buffer pointers or Jim_Obj pointers are cached in metaBlob:
 #    set  ::dlr::lib::testLib::test_strtol::parm::strP::native  [dict create a 5]
 }
 set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]

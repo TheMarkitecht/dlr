@@ -67,7 +67,7 @@ typedef struct {
     ffiFnP fn;
     Jim_Obj* returnVar;
     Jim_Obj* nativeParmsList;
-    void** argPtrs; // points beyond the end of the structure, where the values list lay.
+    Jim_Obj** argObjs; // points beyond the end of the atypes array, where the objects array lay.
     ffi_type* atypes; // placeholder for first element of the array of type pointers located directly at the end of the structure.
 } metaBlobT;
 static const char METABLOB_SIGNATURE[] = "meta";
@@ -303,24 +303,16 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         if (objToTypeP(itp, typeCode, &t[n]) != JIM_OK) return JIM_ERR;
     }  
 
-//todo: if caching the void* doesn't work, try caching the Jim_Obj* instead.
-    // fill argPtrs with pointers to the content of designated script vars.
-    // those vars are the buffers for the packed native binary content during this native call.
-    // their content has probably moved to a new address since the last call,
-    // and their Jim_Obj's replaced with new ones,
-    // because the script assigned them new values since then.
-    meta->argPtrs = (void**)(t + nArgs); // values array lies beyond the end of the types array.
+    // fill argObjs with pointers to the Jim_Obj's of the script vars designated as 
+    // arguments to the native function.
+    meta->argObjs = (Jim_Obj**)(t + nArgs); // object array lies beyond the end of the types array.
     for (unsigned n = 0; n < nArgs; n++) {
-        // using internalRep here for a little more speed.
-        Jim_Obj* v = Jim_GetGlobalVariable(itp, 
+        meta->argObjs[n] = Jim_GetGlobalVariable(itp, 
             meta->nativeParmsList->internalRep.listValue.ele[n], JIM_NONE);
-        if (v == NULL) {
+        if (meta->argObjs[n] == NULL) {
             Jim_SetResultString(itp, "Native argument variable not found.", -1);
             return JIM_ERR;
         }
-        // const is discarded here.  that is required, to be able to pass a large value
-        // either in or out of a native function, while passing by pointer.
-        meta->argPtrs[n] = (void*)Jim_GetString(v, NULL); 
     }  
     
     // prep CIF.
@@ -357,13 +349,27 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "Invalid metaBlob content.", -1);
         return JIM_ERR;
     }
+
+    // fill argPtrs with pointers to the content of designated script vars.
+    // those objects have the buffers for the packed native binary content during this native call.
+    // their content has probably moved to a new address since the last call,
+    // and their buffers replaced with new ones,
+    // because the script assigned them new values since then.
+    unsigned nArgs = meta->cif.nargs;
+    void* argPtrs[nArgs];
+    for (unsigned n = 0; n < nArgs; n++) {
+        // const is discarded here.  that is required, to be able to pass an argument by pointer,
+        // either in or out of a native function.  that is often required for large data.
+        argPtrs[n] = (void*)Jim_GetString(meta->argObjs[n], NULL); 
+    }  
     
     // arrange space for return value.
+    //todo: see if this can be skipped sometimes, if it's already there.
     void* resultBuf = NULL;
     if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
     
     // execute call.
-    ffi_call(&meta->cif, meta->fn, resultBuf, meta->argPtrs);
+    ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
     
     return JIM_OK;
 }
