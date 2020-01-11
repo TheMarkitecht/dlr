@@ -40,8 +40,8 @@ long int strtolWrap(const char *nptr, char **endptr, int base) {
 
 // pass a struct or array by value.  return an element.
 typedef struct {int a, b, c, d; } indexByValueT;
-extern long int indexByValue(const indexByValueT st, const int ix);
-long int indexByValue(const indexByValueT st, const int ix) {
+extern int indexByValue(const indexByValueT st, const int ix);
+int indexByValue(const indexByValueT st, const int ix) {
     const int* p = &st.a;
     return p[ix];
 }

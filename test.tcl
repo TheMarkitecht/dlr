@@ -45,9 +45,10 @@ set ::dlr::lib::testLib::strtolWrap::parmOrder {
     ::dlr::lib::testLib::strtolWrap::parm::radix
 }
 ::dlr::prepMetaBlob  meta  [::dlr::fnAddr  strtolWrap  testLib]  \
-    ::dlr::lib::testLib::strtolWrap::result  12  \
-    $::dlr::lib::testLib::strtolWrap::parmOrder  {14 14 10}
-loop attempt 0 5 {
+    ::dlr::lib::testLib::strtolWrap::result  $::dlr::allTypes(long)  \
+    $::dlr::lib::testLib::strtolWrap::parmOrder  \
+    [list  $::dlr::allTypes(pointer)  $::dlr::allTypes(pointer)  $::dlr::allTypes(int)]
+loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
     puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
@@ -65,9 +66,44 @@ loop attempt 0 5 {
     puts endP=[format $::dlr::ptrFmt $endPUnpack]
     puts len=$len
     assert {$len == [string length $myNum]}
-    
+}
+
+# allocHeap test
+loop attempt 0 3 {
     set chunk [::dlr::allocHeap 0x400000]
     puts chunk=[format $::dlr::ptrFmt $chunk]
     # todo: call memcpy() from dlr-libc
     ::dlr::freeHeap $chunk
 }
+
+exit ;# todo
+
+# indexByValue test
+set ::dlr::lib::testLib::indexByValue::parmOrder {
+    ::dlr::lib::testLib::indexByValue::parm::st
+    ::dlr::lib::testLib::indexByValue::parm::ix
+}
+::dlr::prepMetaBlob  meta  [::dlr::fnAddr  indexByValue  testLib]  \
+    ::dlr::lib::testLib::indexByValue::result  $::dlr::allTypes(int)  \
+    $::dlr::lib::testLib::indexByValue::parmOrder  \
+    [list  $::dlr::allTypes(struct)  $::dlr::allTypes(int)]
+loop attempt 0 3 {
+    ::dlr::createBufferVar  myStruct  $( 4 * $::dlr::bitsOfInt)
+    ::dlr::pack::int  myStruct  10  $( 0 * $::dlr::bitsOfInt)
+    ::dlr::pack::int  myStruct  11  $( 1 * $::dlr::bitsOfInt)
+    ::dlr::pack::int  myStruct  12  $( 2 * $::dlr::bitsOfInt)
+    ::dlr::pack::int  myStruct  13  $( 3 * $::dlr::bitsOfInt)
+    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::st  [::dlr::addrOf myStruct]
+    ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::ix  $attempt
+    
+    set resultUnpack [::dlr::unpack::int [::dlr::callToNative  meta]]
+    puts $myNum=$resultUnpack
+    assert {$resultUnpack == $myNum}
+    
+    set endPUnpack [unpack $endP -intle 0 $::dlr::bitsOfPtr]
+    set len $($endPUnpack - [::dlr::addrOf myNum])
+    puts endP=[format $::dlr::ptrFmt $endPUnpack]
+    puts len=$len
+    assert {$len == [string length $myNum]}
+}
+

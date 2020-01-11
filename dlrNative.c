@@ -142,6 +142,8 @@ int fnAddr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
+// return a dict of dimensions of types on the host platform where dlr was built.
+//todo: command for sizeof any type, such as structs.  obsoletes sizeOfTypes?  requires another command to locate any type metadata before extracting size??
 int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     Jim_Obj* lens[] = {
         Jim_NewStringObj(itp, "Char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.

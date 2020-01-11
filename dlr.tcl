@@ -26,18 +26,42 @@ package provide dlr $::dlr::version
 
 
 # ################  DLR SYSTEM DATA STRUCTURES  #################
+# for these, dlr script package extracts as much dimensional information as possible
+# from the host platform where dlrNative was actually compiled, helping portability.
+
+# fundamentals
 set ::dlr::endian               le
 set ::dlr::intEndian            -int$::dlr::endian
 set ::dlr::floatEndian          -float$::dlr::endian
 set ::dlr::libs                 [dict create]
 set ::dlr::sizeOfTypes          [::dlr::native::sizeOfTypes]
 set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfTypes]
-    
+
 # bit and byte lengths of simple types, for use in converters.
 foreach typ $::dlr::simpleTypeNames {
     set ::dlr::sizeOf$typ       $::dlr::sizeOfTypes($typ)
     set ::dlr::bitsOf$typ       $(8 * [set ::dlr::sizeOf$typ])
 }
+
+# ffi type codes map.  certain types are deleted for being too vague etc.
+set ::dlr::ffiTypeCodes         [dict create \
+    void 0  float 2  double 3  longdouble 4  \
+    uint8 5  sint8 6  uint16 7  sint16 8  uint32 9  sint32 10  uint64 11  sint64 12  \
+    pointer 14 ]
+# ... and an extended map also, with additional aliases corresponding to 
+# C language types on the host platform.
+# we assume unsigned ints are the same length as the signed ints.
+set ::dlr::allTypes              [dict create {*}$::dlr::ffiTypeCodes  \
+    int             $::dlr::ffiTypeCodes(sint$::dlr::bitsOfInt)  \
+    short           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfShort)  \
+    long            $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLong)  \
+    longLong        $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLongLong)  \
+    sSizeT          $::dlr::ffiTypeCodes(sint$::dlr::bitsOfSizeT)  \
+    uInt            $::dlr::ffiTypeCodes(sint$::dlr::bitsOfInt)  \
+    uShort          $::dlr::ffiTypeCodes(sint$::dlr::bitsOfShort)  \
+    uLong           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLong)  \
+    uLongLong       $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLongLong)  \
+    sizeT           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfSizeT)  ]
 
 # aliases to pass through to native implementations of certain dlr system commands.
 foreach cmd {prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
