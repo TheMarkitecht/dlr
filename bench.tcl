@@ -38,6 +38,11 @@ puts bitsOfPtr=$::dlr::bitsOfPtr
 ::dlr::loadLib  testLib  ./dlrTestLib.so
 
 # strtol speed test
+set myNum $(550)
+::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
+set endP $::dlr::null
+::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
+::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
 set ::dlr::lib::testLib::test_strtol::parmOrder {
     ::dlr::lib::testLib::test_strtol::parm::strP::native
     ::dlr::lib::testLib::test_strtol::parm::endPP::native
@@ -46,15 +51,21 @@ set ::dlr::lib::testLib::test_strtol::parmOrder {
 ::dlr::prepMetaBlob  meta  [::dlr::fnAddr  test_strtol  testLib]  \
     ::dlr::lib::testLib::test_strtol::result  12  \
     $::dlr::lib::testLib::test_strtol::parmOrder  {14 14 10}
-set myNum $(550)
 # addrOf requires a string, so it will implicitly use the string representation of myNum.
 puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
-set endP $::dlr::null
-::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
-::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
-loop attempt 0 30000000 {   
+loop attempt 0 300000 {   
+    set myNum $(550 + $attempt)
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
+    set endP $::dlr::null
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
+    ::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
     ::dlr::callToNative  meta  
+    assert {[::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result] == $myNum}    
+    set endPUnpack [unpack $endP -intle 0 $::dlr::bitsOfPtr]
+    set len $($endPUnpack - [::dlr::addrOf myNum])
+    assert {$len == [string length $myNum]}
+# this breaks the test:
+#    set  ::dlr::lib::testLib::test_strtol::parm::strP::native  [dict create a 5]
 }
 set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]
 puts $myNum=$resultUnpack
