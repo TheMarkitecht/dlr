@@ -30,7 +30,8 @@ proc assert {exp} {
 
 puts paths=$::auto_path
 
-package require dlr
+set version [package require dlr]
+puts version=$version
 
 puts bitsOfInt=$::dlr::bitsOfInt
 puts bitsOfPtr=$::dlr::bitsOfPtr
@@ -39,9 +40,9 @@ puts bitsOfPtr=$::dlr::bitsOfPtr
 
 # strtol test
 set ::dlr::lib::testLib::test_strtol::parmOrder {
-    ::dlr::lib::testLib::test_strtol::parm::strP::native
-    ::dlr::lib::testLib::test_strtol::parm::endPP::native
-    ::dlr::lib::testLib::test_strtol::parm::radix::native
+    ::dlr::lib::testLib::test_strtol::parm::strP
+    ::dlr::lib::testLib::test_strtol::parm::endPP
+    ::dlr::lib::testLib::test_strtol::parm::radix
 }
 ::dlr::prepMetaBlob  meta  [::dlr::fnAddr  test_strtol  testLib]  \
     ::dlr::lib::testLib::test_strtol::result  12  \
@@ -50,10 +51,10 @@ loop attempt 0 5 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
     puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP::native  [::dlr::addrOf myNum]
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::strP  [::dlr::addrOf myNum]
     set endP $::dlr::null
-    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
-    ::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
+    ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP  [::dlr::addrOf endP]
+    ::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix  10
     
     set resultUnpack [::dlr::unpack::int [::dlr::callToNative  meta]]
     puts $myNum=$resultUnpack

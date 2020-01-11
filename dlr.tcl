@@ -21,9 +21,9 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
-package provide dlr 0.1
+set ::dlr::version [package require dlrNative]
+package provide dlr $::dlr::version
 
-package require dlrNative
 
 # ################  DLR SYSTEM DATA STRUCTURES  #################
 set ::dlr::endian               le
@@ -40,10 +40,7 @@ foreach typ $::dlr::simpleTypeNames {
 }
 
 # aliases to pass through to native implementations of certain dlr system commands.
-foreach cmd {
-    prepMetaBlob callToNative createBufferVar addrOf 
-    sizeOfPtr sizeOfInt sizeOfLong sizeOfLongLong
-} {
+foreach cmd {prepMetaBlob callToNative createBufferVar addrOf} {
     alias  ::dlr::$cmd  ::dlr::native::$cmd
 }
 

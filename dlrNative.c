@@ -30,6 +30,8 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 #include <dlfcn.h>
 #include <ffi.h>
 
+#define DLR_VERSION_STRING "0.2"
+
 typedef uint8_t u8;
 typedef uint32_t u32;
 typedef void (*ffiFnP)(void);
@@ -396,7 +398,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
 
 //todo: Jim_PackageRequire a specific Jim version.
 
-    if (Jim_PackageProvide(itp, "dlrNative", "0.1", 0) != JIM_OK) {
+    if (Jim_PackageProvide(itp, "dlrNative", DLR_VERSION_STRING, 0) != JIM_OK) {
         return JIM_ERR;
     }
     
