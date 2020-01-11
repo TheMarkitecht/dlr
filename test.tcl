@@ -55,9 +55,7 @@ loop attempt 0 5 {
     ::dlr::pack::ptr  ::dlr::lib::testLib::test_strtol::parm::endPP::native  [::dlr::addrOf endP]
     ::dlr::pack::int  ::dlr::lib::testLib::test_strtol::parm::radix::native  10
     
-    ::dlr::callToNative  meta
-    
-    set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]
+    set resultUnpack [::dlr::unpack::int [::dlr::callToNative  meta]]
     puts $myNum=$resultUnpack
     assert {$resultUnpack == $myNum}
     

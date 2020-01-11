@@ -204,25 +204,37 @@ int addrOf(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-// create and set a script variable having the given name, suitable for holding a binary
-// structure of the given length.  
-// if newBufP is not null, sets *newBufP to point to the structure.
-// if newObjP is not null, sets *newObjP to point to the new Jim_Obj.
-int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, Jim_Obj** newObjP) {
+// create a Jim_Obj suitable for holding a binary structure of the given length.  
+// sets *newBufP to point to the structure.
+// sets *newObjP to point to the new Jim_Obj.
+int createBufferObj(Jim_Interp* itp, int len, void** newBufP, Jim_Obj** newObjP) {
     char* buf = Jim_Alloc(len + 1); // extra 1 for null terminator is not needed for dlr, but may be needed by any further script operations on the object.
     if (buf == NULL) {
         Jim_SetResultString(itp, "Out of memory while allocating buffer.", -1);
         return JIM_ERR;
     }  
     buf[len] = 0; // last-ditch safety for any further script operations on the object.
-    Jim_Obj* valueObj = Jim_NewStringObjNoAlloc(itp, buf, len);
+    *newBufP = (void*)buf;
+    *newObjP = Jim_NewStringObjNoAlloc(itp, buf, len);
+    return JIM_OK;
+}
+
+// create and set a script variable having the given name, suitable for holding a binary
+// structure of the given length.  
+// if newBufP is not null, sets *newBufP to point to the structure.
+// if newObjP is not null, sets *newObjP to point to the new Jim_Obj.
+// todo: convert this to a command usable from script.  it's useful from there, and useless to call from C anyway.
+int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, Jim_Obj** newObjP) {
+    void* buf = NULL;
+    Jim_Obj* valueObj = NULL;
+    if (createBufferObj(itp, len, &buf, &valueObj) != JIM_OK) 
+        return JIM_ERR;
     if (Jim_SetVariable(itp, varName, valueObj) != JIM_OK) {
         Jim_SetResultString(itp, "Failed to set variable for buffer.", -1);
         return JIM_ERR;
     }    
     if (newBufP) *newBufP = (void*)buf;
     if (newObjP) *newObjP = valueObj;
-    
     return JIM_OK;
 }
 
@@ -373,13 +385,20 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     if (resultBuf == NULL) {
         if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
     }
-#else
+#endif
+#if 0
     if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
+#endif
+#if 1
+    Jim_Obj* resultObj = NULL;
+    if (createBufferObj(itp, (int)meta->cif.rtype->size, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
 #endif
 
     // execute call.
     ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
+    Jim_SetResult(itp, resultObj);
     
+    //todo: optionally check for errors, in the ways offered by the most common libs.    
     return JIM_OK;
 }
 

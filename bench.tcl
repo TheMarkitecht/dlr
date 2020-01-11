@@ -56,6 +56,6 @@ set endP $::dlr::null
 loop attempt 0 30000000 {   
     ::dlr::callToNative  meta  
 }
-set resultUnpack [::dlr::unpack::int $::dlr::lib::testLib::test_strtol::result]
+set resultUnpack [::dlr::unpack::int [::dlr::callToNative  meta]]
 puts $myNum=$resultUnpack
 assert {$resultUnpack == $myNum}
