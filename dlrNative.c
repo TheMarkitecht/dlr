@@ -338,7 +338,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     }
     
     // fill argPtrs with pointers to the content of designated script vars.
-    // those vars are the buffers for the packed native binary content during this native call.
+    // those objects have the buffers for the packed native binary content during this native call.
     // their content has probably moved to a new address since the last call,
     // and their Jim_Obj's replaced with new ones,
     // because the script assigned them new values since then.
@@ -359,8 +359,24 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 
     // arrange space for return value.
     void* resultBuf = NULL;
+// both these are compatible with the interp.
+// but performance is about the same either way.
+#if 0
+    Jim_Obj* rv = Jim_GetGlobalVariable(itp, meta->returnVar, JIM_NONE);
+    if (rv != NULL) {
+        int rvLen = 0;
+        // discarding const again.
+        resultBuf = (void*)Jim_GetString(rv, &rvLen); // assume that this might return a NULL.
+        if (rvLen <= (int)meta->cif.rtype->size)
+            resultBuf = NULL; // too small.
+    }
+    if (resultBuf == NULL) {
+        if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
+    }
+#else
     if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
-    
+#endif
+
     // execute call.
     ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
     
