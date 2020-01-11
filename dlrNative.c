@@ -357,42 +357,31 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     unsigned nArgs = meta->cif.nargs;
     void* argPtrs[nArgs];
     for (unsigned n = 0; n < nArgs; n++) {
-        // using internalRep here for a little more speed.
-        Jim_Obj* v = Jim_GetGlobalVariable(itp, 
-            meta->nativeParmsList->internalRep.listValue.ele[n], JIM_NONE);
+        // look up the designated variable, in a global context.
+        // using internalRep of the parms list here for a little more speed.
+        Jim_Obj* varName = meta->nativeParmsList->internalRep.listValue.ele[n];
+        Jim_Obj* v = Jim_GetGlobalVariable(itp, varName, JIM_NONE);
         if (v == NULL) {
             Jim_SetResultString(itp, "Native argument variable not found.", -1);
             return JIM_ERR;
         }
-        // const is discarded here.  that is required, to be able to pass a large value
-        // either in or out of a native function, while passing by pointer.
+        // const is discarded here.  that is required, to be able to pass an argument by pointer
+        // either in or out of a native function.  that is required for large data.
         argPtrs[n] = (void*)Jim_GetString(v, NULL); 
+        // safety check.
+        // we'll let it slide here if the script allocated just enough bytes for the value,
+        // and no extra byte for the null terminator.  not all parms are strings.
+        if (argPtrs[n] == NULL || v->length < meta->cif.arg_types[n]->size) {
+            Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %s", 
+                Jim_GetString(varName, NULL));
+            return JIM_ERR;
+        }
     }  
 
     // arrange space for return value.
     void* resultBuf = NULL;
-// both these are compatible with the interp.
-// but performance is about the same either way.
-#if 0
-    Jim_Obj* rv = Jim_GetGlobalVariable(itp, meta->returnVar, JIM_NONE);
-    if (rv != NULL) {
-        int rvLen = 0;
-        // discarding const again.
-        resultBuf = (void*)Jim_GetString(rv, &rvLen); // assume that this might return a NULL.
-        if (rvLen <= (int)meta->cif.rtype->size)
-            resultBuf = NULL; // too small.
-    }
-    if (resultBuf == NULL) {
-        if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
-    }
-#endif
-#if 0
-    if (createBufferVar(itp, meta->returnVar, (int)meta->cif.rtype->size, &resultBuf, NULL) != JIM_OK) return JIM_ERR;
-#endif
-#if 1
     Jim_Obj* resultObj = NULL;
     if (createBufferObj(itp, (int)meta->cif.rtype->size, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
-#endif
 
     // execute call.
     ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
