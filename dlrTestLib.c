@@ -33,8 +33,8 @@ typedef uint32_t u32;
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
 // wrapper of a simple libc function, to help debugging and smoke testing.
-extern long int strtolWrapper(const char *nptr, char **endptr, int base);
-long int strtolWrapper(const char *nptr, char **endptr, int base) {
+extern long int strtolWrap(const char *nptr, char **endptr, int base);
+long int strtolWrap(const char *nptr, char **endptr, int base) {
     return strtol(nptr, endptr, base);
 }
 
