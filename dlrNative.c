@@ -29,6 +29,7 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <dlfcn.h>
 #include <ffi.h>
+//todo: clone, build and test with latest libffi.  system's libffi6-3.2.1-9 is 2014.
 
 #define DLR_VERSION_STRING "0.2"
 
@@ -146,16 +147,16 @@ int fnAddr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 //todo: command for sizeof any type, such as structs.  obsoletes sizeOfTypes?  requires another command to locate any type metadata before extracting size??
 int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     Jim_Obj* lens[] = {
-        Jim_NewStringObj(itp, "Char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.
-        Jim_NewStringObj(itp, "Short", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(short)),
-        Jim_NewStringObj(itp, "Int", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(int)),
-        Jim_NewStringObj(itp, "Long", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(long)),
-        Jim_NewStringObj(itp, "LongLong", -1),      Jim_NewIntObj(itp, (jim_wide)sizeof(long long)),
-        Jim_NewStringObj(itp, "Ptr", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(void*)),
-        Jim_NewStringObj(itp, "SizeT", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(size_t)),
-        Jim_NewStringObj(itp, "Float", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(float)),
-        Jim_NewStringObj(itp, "Double", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(double)),
-        Jim_NewStringObj(itp, "LongDouble", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(long double)),
+        Jim_NewStringObj(itp, "char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.
+        Jim_NewStringObj(itp, "short", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(short)),
+        Jim_NewStringObj(itp, "int", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(int)),
+        Jim_NewStringObj(itp, "long", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(long)),
+        Jim_NewStringObj(itp, "longLong", -1),      Jim_NewIntObj(itp, (jim_wide)sizeof(long long)),
+        Jim_NewStringObj(itp, "ptr", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(void*)),
+        Jim_NewStringObj(itp, "sizeT", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(size_t)),
+        Jim_NewStringObj(itp, "float", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(float)),
+        Jim_NewStringObj(itp, "double", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(double)),
+        Jim_NewStringObj(itp, "longDouble", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(long double)),
     };
     int numTypes = sizeof(lens) / sizeof(Jim_Obj*);
     for (int i = 0; i < numTypes; i++) {
@@ -294,8 +295,7 @@ int createBufferObj(Jim_Interp* itp, int len, void** newBufP, Jim_Obj** newObjP)
 // structure of the given length.  
 // if newBufP is not null, sets *newBufP to point to the structure.
 // if newObjP is not null, sets *newObjP to point to the new Jim_Obj.
-// todo: convert this to a command usable from script.  it's useful from there, and useless to call from C anyway.
-int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, Jim_Obj** newObjP) {
+int createBufferVarNative(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, Jim_Obj** newObjP) {
     void* buf = NULL;
     Jim_Obj* valueObj = NULL;
     if (createBufferObj(itp, len, &buf, &valueObj) != JIM_OK) 
@@ -309,13 +309,83 @@ int createBufferVar(Jim_Interp* itp, Jim_Obj* varName, int len, void** newBufP, 
     return JIM_OK;
 }
 
-int objToTypeP(Jim_Interp* itp, Jim_Obj *v, ffi_type** typ) {
-    jim_wide code = 0;
-    if (Jim_GetWide(itp, v, &code) != JIM_OK || code < 0 || code > FFI_TYPE_FINAL || ffiTypes[code] == NULL) {
-        Jim_SetResultString(itp, "Expected type ID code but got other data.", -1);
+// exposes createBufferVarNative() to script.
+int createBufferVar(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum { 
+        cmdIX = 0,
+        varNameIX,
+        lenIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
         return JIM_ERR;
     }
-    *typ = ffiTypes[code];
+
+    jim_wide len;
+    if (Jim_GetWide(itp, objv[lenIX], &len) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected size integer but got other data.", -1);
+        return JIM_ERR;
+    }
+    return createBufferVarNative(itp, objv[varNameIX], (int)len, NULL, NULL);
+}
+
+int varToTypeP(Jim_Interp* itp, Jim_Obj *var, ffi_type** typ) {
+    Jim_Obj* typeObj = Jim_GetVariable(itp, var, JIM_ERRMSG);
+    if (typeObj == NULL) return JIM_ERR;
+    jim_wide code = 0;
+    if (Jim_GetWide(itp, typeObj, &code) == JIM_OK) {
+        // found integer.  valid type code?
+        if (code < 0 || code > FFI_TYPE_FINAL || ffiTypes[code] == NULL) {
+            Jim_SetResultString(itp, "Invalid type ID code integer.", -1);
+            return JIM_ERR;
+        }
+        *typ = ffiTypes[code];
+        return JIM_OK;
+    } 
+    *typ = (ffi_type*)Jim_GetString(typeObj, NULL);
+    if (*typ == NULL || typeObj->length < sizeof(ffi_type)) {
+        Jim_SetResultString(itp, "Structure type metadata variable is unusable.", -1);
+        return JIM_ERR;
+    }  
+    return JIM_OK;
+}
+
+//todo: test with nested structs.
+int prepStructType(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum { 
+        cmdIX = 0,
+        structTypeVarNameIX,
+        memberTypeVarNameListIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+    
+    // create buffer variable for type blob.  first we must determine its final size from the number of its members.
+    Jim_Obj* typesList = objv[memberTypeVarNameListIX];
+    int nMemb = Jim_ListLength(itp, typesList);
+    int blobLen = sizeof(ffi_type) + (nMemb + 1) * sizeof(ffi_type*);
+    ffi_type* structTyp;
+    if (createBufferVarNative(itp, objv[structTypeVarNameIX], blobLen, (void**)&structTyp, NULL) != JIM_OK) return JIM_ERR;
+    structTyp->type = FFI_TYPE_STRUCT;
+    structTyp->size = 0;
+    structTyp->alignment = 0;
+    
+    // gather members types.
+    structTyp->elements = (ffi_type**)(structTyp + 1); // now structTyp->elements can be treated as the types array at the end of the struct.
+    for (int n = 0; n < nMemb; n++) {
+        if (varToTypeP(itp, Jim_ListGetIndex(itp, typesList, n), &structTyp->elements[n]) != JIM_OK) {
+            Jim_SetResultString(itp, "Variable defining a member type is unusable.", -1);
+            return JIM_ERR;
+        }  
+    }  
+    structTyp->elements[nMemb] = NULL; // terminating NULL element is required by FFI.
+    
     return JIM_OK;
 }
 
@@ -336,9 +406,9 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         metaBlobVarNameIX,
         fnPIX,
         returnVarNameIX,
-        returnTypeCodeIX,
+        returnTypeVarNameIX,
         nativeParmsListIX,
-        parmTypeCodeListIX,
+        parmTypeVarNameListIX,
         argCount
     };
     
@@ -351,7 +421,7 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     int nArgs = Jim_ListLength(itp, objv[nativeParmsListIX]);
     int blobLen = sizeof(metaBlobT) + nArgs * sizeof(ffi_type*);
     metaBlobT* meta;
-    if (createBufferVar(itp, objv[metaBlobVarNameIX], blobLen, (void**)&meta, NULL) != JIM_OK) return JIM_ERR;
+    if (createBufferVarNative(itp, objv[metaBlobVarNameIX], blobLen, (void**)&meta, NULL) != JIM_OK) return JIM_ERR;
     *(u32*)meta->signature = *(u32*)METABLOB_SIGNATURE;
     meta->signature[4] = 0; // string safety.
     
@@ -370,22 +440,23 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     // gather return-value metadata.
     meta->returnVar = objv[returnVarNameIX];
     ffi_type* rtype = NULL;
-    if (objToTypeP(itp, objv[returnTypeCodeIX], &rtype) != JIM_OK) return JIM_ERR;
+    if (varToTypeP(itp, objv[returnTypeVarNameIX], &rtype) != JIM_OK) return JIM_ERR;
 
     // gather parm metadata.
     meta->nativeParmsList = objv[nativeParmsListIX];
-    Jim_Obj* typesList = objv[parmTypeCodeListIX];
+    Jim_Obj* typesList = objv[parmTypeVarNameListIX];
     if (nArgs != Jim_ListLength(itp, typesList)) {
         Jim_SetResultString(itp, "List lengths don't match.", -1);
         return JIM_ERR;
     }
     ffi_type** t = &meta->atypes; // now t can be treated as the types array at the end of the struct.
     for (int n = 0; n < nArgs; n++) {
-        Jim_Obj* typeCode = Jim_ListGetIndex(itp, objv[parmTypeCodeListIX], n);
-        if (objToTypeP(itp, typeCode, &t[n]) != JIM_OK) return JIM_ERR;
+        Jim_Obj* typeVar = Jim_ListGetIndex(itp, typesList, n);
+        if (varToTypeP(itp, typeVar, &t[n]) != JIM_OK) return JIM_ERR;
     }  
     
     // prep CIF.
+    // this will also set the .size of any structure types used here.
     ffi_status err = ffi_prep_cif(&meta->cif, FFI_DEFAULT_ABI, (unsigned int)nArgs, rtype, &meta->atypes);
     if (err != FFI_OK) {
         Jim_SetResultString(itp, "Failed to prep FFI CIF structure for call.", -1);
@@ -441,7 +512,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         argPtrs[n] = (void*)Jim_GetString(v, NULL); 
         // safety check.
         // we'll let it slide here if the script allocated just enough bytes for the value,
-        // and no extra byte for the null terminator.  not all parms are strings.
+        // and no extra byte for a null terminator.  not all parms are strings.
         if (argPtrs[n] == NULL || v->length < meta->cif.arg_types[n]->size) {
             Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %s", 
                 Jim_GetString(varName, NULL));
@@ -452,7 +523,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     // arrange space for return value.
     void* resultBuf = NULL;
     Jim_Obj* resultObj = NULL;
-    if (createBufferObj(itp, (int)meta->cif.rtype->size, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
+    if (createBufferObj(itp, meta->cif.rtype->size, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
 
     // execute call.
     ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
@@ -472,11 +543,13 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     }
     
     Jim_CreateCommand(itp, "dlr::native::loadLib", loadLib, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::prepStructType", prepStructType, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::createBufferVar", createBufferVar, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::allocHeap", allocHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
 

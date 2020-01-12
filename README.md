@@ -30,7 +30,7 @@ It lets your Jim scripts dynamically call a shared object library (.so file) of 
 ## Requirements:
 
 * Jim 0.79 or later
-* libffi (tested with 6.0.4)
+* libffi (tested with libffi6-3.2.1-9)
 * gcc (tested with gcc 8.3.0)
 
 ## Building:

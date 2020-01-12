@@ -23,7 +23,7 @@
 
 set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
-
+#todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
 
 # ################  DLR SYSTEM DATA STRUCTURES  #################
 # for these, dlr script package extracts as much dimensional information as possible
@@ -34,37 +34,49 @@ set ::dlr::endian               le
 set ::dlr::intEndian            -int$::dlr::endian
 set ::dlr::floatEndian          -float$::dlr::endian
 set ::dlr::libs                 [dict create]
-set ::dlr::sizeOfTypes          [::dlr::native::sizeOfTypes]
-set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfTypes]
+set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
+set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
 
 # bit and byte lengths of simple types, for use in converters.
 foreach typ $::dlr::simpleTypeNames {
-    set ::dlr::sizeOf$typ       $::dlr::sizeOfTypes($typ)
-    set ::dlr::bitsOf$typ       $(8 * [set ::dlr::sizeOf$typ])
+    set ::dlr::size::$typ       $::dlr::sizeOfSimpleTypes($typ)
+    set ::dlr::bits::$typ       $(8 * [set ::dlr::size::$typ])
 }
 
 # ffi type codes map.  certain types are deleted for being too vague etc.
-set ::dlr::ffiTypeCodes         [dict create \
-    void 0  float 2  double 3  longdouble 4  \
-    uint8 5  sint8 6  uint16 7  sint16 8  uint32 9  sint32 10  uint64 11  sint64 12  \
-    pointer 14 ]
-# ... and an extended map also, with additional aliases corresponding to 
-# C language types on the host platform.
+set ::dlr::ffiType::void        0
+set ::dlr::ffiType::float       2
+set ::dlr::ffiType::double      3
+set ::dlr::ffiType::longdouble  4
+set ::dlr::ffiType::uint8       5
+set ::dlr::ffiType::sint8       6
+set ::dlr::ffiType::uint16      7
+set ::dlr::ffiType::sint16      8
+set ::dlr::ffiType::uint32      9
+set ::dlr::ffiType::sint32      10
+set ::dlr::ffiType::uint64      11
+set ::dlr::ffiType::sint64      12
+set ::dlr::ffiType::ptr         14
+
+# ... and an extended map also, including those plus additional aliases 
+# corresponding to C language types on the host platform.
 # we assume unsigned ints are the same length as the signed ints.
-set ::dlr::allTypes              [dict create {*}$::dlr::ffiTypeCodes  \
-    int             $::dlr::ffiTypeCodes(sint$::dlr::bitsOfInt)  \
-    short           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfShort)  \
-    long            $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLong)  \
-    longLong        $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLongLong)  \
-    sSizeT          $::dlr::ffiTypeCodes(sint$::dlr::bitsOfSizeT)  \
-    uInt            $::dlr::ffiTypeCodes(sint$::dlr::bitsOfInt)  \
-    uShort          $::dlr::ffiTypeCodes(sint$::dlr::bitsOfShort)  \
-    uLong           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLong)  \
-    uLongLong       $::dlr::ffiTypeCodes(sint$::dlr::bitsOfLongLong)  \
-    sizeT           $::dlr::ffiTypeCodes(sint$::dlr::bitsOfSizeT)  ]
+set ::dlr::type::int            [set ::dlr::ffiType::sint$::dlr::bits::int       ]
+set ::dlr::type::short          [set ::dlr::ffiType::sint$::dlr::bits::short     ]
+set ::dlr::type::long           [set ::dlr::ffiType::sint$::dlr::bits::long      ]
+set ::dlr::type::longLong       [set ::dlr::ffiType::sint$::dlr::bits::longLong  ]
+set ::dlr::type::sSizeT         [set ::dlr::ffiType::sint$::dlr::bits::sizeT     ]
+set ::dlr::type::uInt           [set ::dlr::ffiType::uint$::dlr::bits::int       ]
+set ::dlr::type::uShort         [set ::dlr::ffiType::uint$::dlr::bits::short     ]
+set ::dlr::type::uLong          [set ::dlr::ffiType::uint$::dlr::bits::long      ]
+set ::dlr::type::uLongLong      [set ::dlr::ffiType::uint$::dlr::bits::longLong  ]
+set ::dlr::type::sizeT          [set ::dlr::ffiType::uint$::dlr::bits::sizeT     ]
+foreach v [info vars ::dlr::ffiType::*] {
+    set  ::dlr::type::[namespace tail $v]  [set $v]
+}
 
 # aliases to pass through to native implementations of certain dlr system commands.
-foreach cmd {prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
+foreach cmd {prepStructType prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
     alias  ::dlr::$cmd  ::dlr::native::$cmd
 }
 
@@ -72,21 +84,21 @@ foreach cmd {prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap
 # types with length unspecified in C use converters for fixed-size types.
 foreach conversion {pack unpack} {
     # signed ints.
-    alias  ::dlr::${conversion}::int        ::dlr::${conversion}::i$::dlr::bitsOfInt
-    alias  ::dlr::${conversion}::short      ::dlr::${conversion}::i$::dlr::bitsOfShort
-    alias  ::dlr::${conversion}::long       ::dlr::${conversion}::i$::dlr::bitsOfLong
-    alias  ::dlr::${conversion}::longLong   ::dlr::${conversion}::i$::dlr::bitsOfLongLong
-    alias  ::dlr::${conversion}::sSizeT     ::dlr::${conversion}::i$::dlr::bitsOfSizeT
+    alias  ::dlr::${conversion}::int        ::dlr::${conversion}::i$::dlr::bits::int
+    alias  ::dlr::${conversion}::short      ::dlr::${conversion}::i$::dlr::bits::short
+    alias  ::dlr::${conversion}::long       ::dlr::${conversion}::i$::dlr::bits::long
+    alias  ::dlr::${conversion}::longLong   ::dlr::${conversion}::i$::dlr::bits::longLong
+    alias  ::dlr::${conversion}::sSizeT     ::dlr::${conversion}::i$::dlr::bits::sizeT
     
     # unsigned ints.  we assume these are the same length as the signed ints.
-    alias  ::dlr::${conversion}::uInt       ::dlr::${conversion}::u$::dlr::bitsOfInt
-    alias  ::dlr::${conversion}::uShort     ::dlr::${conversion}::u$::dlr::bitsOfShort
-    alias  ::dlr::${conversion}::uLong      ::dlr::${conversion}::u$::dlr::bitsOfLong
-    alias  ::dlr::${conversion}::uLongLong  ::dlr::${conversion}::u$::dlr::bitsOfLongLong
-    alias  ::dlr::${conversion}::sizeT      ::dlr::${conversion}::u$::dlr::bitsOfSizeT
+    alias  ::dlr::${conversion}::uInt       ::dlr::${conversion}::u$::dlr::bits::int
+    alias  ::dlr::${conversion}::uShort     ::dlr::${conversion}::u$::dlr::bits::short
+    alias  ::dlr::${conversion}::uLong      ::dlr::${conversion}::u$::dlr::bits::long
+    alias  ::dlr::${conversion}::uLongLong  ::dlr::${conversion}::u$::dlr::bits::longLong
+    alias  ::dlr::${conversion}::sizeT      ::dlr::${conversion}::u$::dlr::bits::sizeT
 
     # pointer
-    alias  ::dlr::${conversion}::ptr        ::dlr::${conversion}::u$::dlr::bitsOfPtr
+    alias  ::dlr::${conversion}::ptr        ::dlr::${conversion}::u$::dlr::bits::ptr
 }
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
@@ -109,6 +121,7 @@ proc ::dlr::fnAddr {fnName libAlias} {
 #   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 
+#todo: make all packers take a reference parm 
 proc    ::dlr::pack::i8 {packVarName  unpackedData  {offsetBits 0}} {
     pack  $packVarName  $unpackedData  $::dlr::intEndian  8  $offsetBits
 }
@@ -175,6 +188,6 @@ proc ::dlr::unpack::u64 {packedData  {offsetBits 0}} {
 
 # ################  MORE DLR SYSTEM DATA STRUCTURES  ############
 # pointer support
-set ::dlr::ptrFmt               0x%0$($::dlr::bitsOfPtr / 4)X
+set ::dlr::ptrFmt               0x%0$($::dlr::bits::ptr / 4)X
 # scripts should use $::dlr::null instead of packing their own nulls.
 ::dlr::pack::ptr  ::dlr::null  0 

@@ -38,11 +38,11 @@ long int strtolWrap(const char *nptr, char **endptr, int base) {
     return strtol(nptr, endptr, base);
 }
 
-// pass a struct or array by value.  return an element.
-typedef struct {int a, b, c, d; } indexByValueT;
-extern int indexByValue(const indexByValueT st, const int ix);
-int indexByValue(const indexByValueT st, const int ix) {
-    const int* p = &st.a;
-    return p[ix];
+// pass a struct or array by value.  return a different version of that.
+typedef struct {int a, b, c, d; } mulByValueT;
+extern mulByValueT mulByValue(const mulByValueT st, const int factor);
+mulByValueT mulByValue(const mulByValueT st, const int factor) {
+    mulByValueT r = {st.a * factor, st.b * factor, st.c * factor, st.d * factor};
+    return r;
 }
 
