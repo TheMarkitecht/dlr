@@ -31,7 +31,7 @@ package provide dlr $::dlr::version
 
 # fundamentals
 set ::dlr::endian               le
-set ::dlr::intEndian            -int$::dlr::endian
+set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
 set ::dlr::floatEndian          -float$::dlr::endian
 set ::dlr::libs                 [dict create]
 set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
@@ -105,7 +105,8 @@ foreach conversion {pack unpack} {
 # these work the same for both signed and unsigned.
 foreach size {8 16 32 64} {
     foreach sign {u i} {
-        alias  ::dlr::pack::${sign}${size}  ::dlr::native::pack$size
+        alias  ::dlr::pack::${sign}${size}      ::dlr::native::pack$size
+        alias  ::dlr::unpack::${sign}${size}    ::dlr::native::unpack$size
     }
 }
 
@@ -129,36 +130,17 @@ proc ::dlr::fnAddr {fnName libAlias} {
 #   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 
-proc  ::dlr::unpack::i8 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 8
-}
+set ::dlr::examples {
+    # these examples actually worked, but are unused now.  int packers have moved to dlrNative in C.
+    
+    proc   ::dlr::pack::u32 {packVarName  unpackedData  {offsetBits 0}} {
+        upvar 1 $packVarName packVar
+        pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
+    }
 
-proc  ::dlr::unpack::u8 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 8
-}
-
-proc ::dlr::unpack::i16 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 16
-}
-
-proc ::dlr::unpack::u16 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 16
-}
-
-proc ::dlr::unpack::i32 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 32
-}
-
-proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 32
-}
-
-proc ::dlr::unpack::i64 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 64
-}
-
-proc ::dlr::unpack::u64 {packedData  {offsetBits 0}} {
-    unpack $packedData $::dlr::intEndian $offsetBits 64
+    proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
+        unpack $packedData $::dlr::intEndian $offsetBits 32
+    }
 }
 
 # ################  MORE DLR SYSTEM DATA STRUCTURES  ############

@@ -118,10 +118,14 @@ loop attempt 2 5 {
     ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::factor  $attempt
     
     set resultBuf [::dlr::callToNative  meta2]
-    assert {[::dlr::unpack::int $resultBuf $( 0 * $::dlr::bits::int)] == 10 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf $( 1 * $::dlr::bits::int)] == 11 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf $( 2 * $::dlr::bits::int)] == 12 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf $( 3 * $::dlr::bits::int)] == 13 * $attempt}
+    set ofs 0
+    assert {[::dlr::unpack::int $resultBuf $ofs] == 10 * $attempt}
+    incr ofs $::dlr::size::int
+    assert {[::dlr::unpack::int $resultBuf $ofs] == 11 * $attempt}
+    incr ofs $::dlr::size::int
+    assert {[::dlr::unpack::int $resultBuf $ofs] == 12 * $attempt}
+    incr ofs $::dlr::size::int
+    assert {[::dlr::unpack::int $resultBuf $ofs] == 13 * $attempt}
 }
 
 # test local vars in pack api.

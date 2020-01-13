@@ -18,9 +18,12 @@ r
 #c
 #b jim-pack.c:420
 
-b prepStructType
+#b prepStructType
+#c
+#b packerSetup
+
+b unpackerSetup
 c
-b packerSetup
 
 #b prepMetaBlob
 #b callToNative
