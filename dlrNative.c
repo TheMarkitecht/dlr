@@ -35,8 +35,15 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
 //todo: periodically re-run all tests, and valgrind, with full compiler optimization on dlr and on the interp.  code may behave differently.
 
-typedef uint8_t u8;
+typedef  uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
+typedef uint64_t u64;
+typedef   int8_t i8;
+typedef  int16_t i16;
+typedef  int32_t i32;
+typedef  int64_t i64;
+
 typedef void (*ffiFnP)(void);
 
 // map type ID codes to type metadata structs.
@@ -533,6 +540,88 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
+int packerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
+    int sizeBytes, jim_wide* dataP, u8** bufP) {
+        
+    enum { 
+        cmdIX = 0,
+        packVarNameIX,
+        unpackedDataIX,
+        offsetBytesIX,
+        argCount
+    };
+    
+    if (objc > argCount || objc < offsetBytesIX) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+    
+    *dataP = 0;
+    if (Jim_GetWide(itp, objv[unpackedDataIX], dataP) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected data value integer but got other data.", -1);
+        return JIM_ERR;
+    }
+    
+    jim_wide offset = 0;
+    if (objc > offsetBytesIX) {
+        if (Jim_GetWide(itp, objv[offsetBytesIX], &offset) != JIM_OK) {
+            Jim_SetResultString(itp, "Expected offset integer but got other data.", -1);
+            return JIM_ERR;
+        }
+        if (offset < 0) {
+            Jim_SetResultString(itp, "Offset cannot be negative.", -1);
+            return JIM_ERR;
+        }    
+    }
+    int requiredLen = offset + sizeBytes;
+    
+    Jim_Obj* v = Jim_GetVariable(itp, objv[packVarNameIX], JIM_NONE);
+    if (v == NULL) {
+        if (createBufferVarNative(itp, objv[packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
+    } else {
+        if (v->length < requiredLen) {
+            Jim_SetResultString(itp, "Inadequate buffer in variable.", -1);
+            return JIM_ERR;
+        }    
+    }
+    *bufP = (u8*)v->bytes + offset;
+    
+    Jim_SetResultInt(itp, requiredLen); // offset for the next pack after this one.
+    return JIM_OK;
+}
+
+int pack8(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    jim_wide data; 
+    u8* buf = NULL;
+    if (packerSetup(itp, objc, objv, sizeof(u8), &data, &buf) != JIM_OK) return JIM_ERR;
+    *(u8*)buf = (u8)data;
+    return JIM_OK;
+}
+
+int pack16(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    jim_wide data; 
+    u16* buf = NULL;
+    if (packerSetup(itp, objc, objv, sizeof(u16), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    *(u16*)buf = (u16)data;
+    return JIM_OK;
+}
+
+int pack32(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    jim_wide data; 
+    u32* buf = NULL;
+    if (packerSetup(itp, objc, objv, sizeof(u32), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    *(u32*)buf = (u32)data;
+    return JIM_OK;
+}
+
+int pack64(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    jim_wide data; 
+    u64* buf = NULL;
+    if (packerSetup(itp, objc, objv, sizeof(u64), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    *(u64*)buf = (u64)data;
+    return JIM_OK;
+}
+
 int Jim_dlrNativeInit(Jim_Interp* itp) {
     //ivkClientT* client = client_alloc(itp);
 
@@ -552,6 +641,10 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::createBufferVar", createBufferVar, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::allocHeap", allocHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack8",  pack8,  NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack16", pack16, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack32", pack32, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack64", pack64, NULL, NULL);
 
     return JIM_OK;
 }

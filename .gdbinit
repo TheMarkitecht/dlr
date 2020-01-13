@@ -14,11 +14,14 @@ set solib-search-path .:..
 b jim-load.c:33
 r
 
-b createBufferVar
-c
-b jim-pack.c:420
+#b createBufferVar
+#c
+#b jim-pack.c:420
 
-#b prepStructType
+b prepStructType
+c
+b packerSetup
+
 #b prepMetaBlob
 #b callToNative
 #b strtolWrap

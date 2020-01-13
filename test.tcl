@@ -110,10 +110,11 @@ loop attempt 2 5 {
         # and make it pack a series of values in 1 pass, so it can preallocate the buffer to the right size.  
         # that's another problem with jim-pack, and it will run faster then anyway.
         # jim pack looks horribly slow (appending 1 byte at a time?  really?).
-    ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  10  $( 0 * $::dlr::bits::int)
-    ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  11  $( 1 * $::dlr::bits::int)
-    ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  12  $( 2 * $::dlr::bits::int)
-    ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  13  $( 3 * $::dlr::bits::int)
+    
+    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  10]
+    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  11  $ofs]
+    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  12  $ofs]
+    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  13  $ofs]
     ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::factor  $attempt
     
     set resultBuf [::dlr::callToNative  meta2]
