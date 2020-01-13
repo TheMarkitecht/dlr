@@ -79,13 +79,19 @@ loop attempt 0 3 {
     assert {$len == [string length $myNum]}
 }
 
-# speed benchmark.  very comparable to bench.tcl of same version.  
+# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
 # difference is under 1%, far less than the background noise from the OS multitasking.
 if {$::argc == 1} {
     set reps $(int([lindex $::argv 0]))
     if {$reps > 0} {
         bench callToNative $reps {
             ::dlr::callToNative  meta  
+        }
+        bench pack3 $($reps / 10) {   
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
+            set endP $::dlr::null
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
+            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
         }
         bench pack3-and-call $($reps / 10) {   
             ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
@@ -120,10 +126,6 @@ set ::dlr::lib::testLib::mulByValue::parmOrder {
 loop attempt 2 5 {
     #todo: fetch sizeof arbitrary type, and offsetof, to allow for padding here.  for now it just allocates oversize.
     ::dlr::createBufferVar  ::dlr::lib::testLib::mulByValue::parm::st  32
-    #todo: offer a pack api that takes byte offsets instead of bits.  it's creating confusion and bugs in the common cases.  
-        # and make it pack a series of values in 1 pass, so it can preallocate the buffer to the right size.  
-        # that's another problem with jim-pack, and it will run faster then anyway.
-        # jim pack looks horribly slow (appending 1 byte at a time?  really?).
     
     set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  10]
     set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  11  $ofs]

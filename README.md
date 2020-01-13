@@ -13,18 +13,19 @@ dlr is an extension for [Jim Tcl](http://jim.tcl.tk/), the small-footprint Tcl i
 dlr may be easily pronounced as "dealer".
 
 dlr binds your Jim scripts to libffi (Foreign Function Interface).
-It lets your Jim scripts dynamically call a shared object library (.so file) of your choosing.
+It lets your Jim scripts dynamically call a shared object library (.so file) of your choosing,
+without writing any C/C++ code if you don't want to.
 
 ## Features of This Version:
 
 * Supports calling only one direction: from script to native code.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
-* Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  All the surrounding features are implemented in a script library.
-* Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C.
-* Ultra-simple build process.
+* Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script library.
+* Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
+* Ultra-simple build process - source is just one .c file.
 * Works with Jim's `package require` command.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
-* Tested (such as it is) on Debian 10.0 with libffi.so.6.0.4.
+* Tested on Debian 10.0 with libffi.so.6.0.4.
 * Might work well on ARM too (drop me a line if you've tried it!).
 
 ## Requirements:
