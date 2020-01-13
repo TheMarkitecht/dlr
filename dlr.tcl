@@ -121,9 +121,9 @@ proc ::dlr::fnAddr {fnName libAlias} {
 #   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 
-#todo: make all packers take a reference parm 
 proc    ::dlr::pack::i8 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  8  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  8  $offsetBits
 }
 
 proc  ::dlr::unpack::i8 {packedData  {offsetBits 0}} {
@@ -131,7 +131,8 @@ proc  ::dlr::unpack::i8 {packedData  {offsetBits 0}} {
 }
 
 proc    ::dlr::pack::u8 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  8  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  8  $offsetBits
 }
 
 proc  ::dlr::unpack::u8 {packedData  {offsetBits 0}} {
@@ -139,7 +140,8 @@ proc  ::dlr::unpack::u8 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::i16 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  16  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  16  $offsetBits
 }
 
 proc ::dlr::unpack::i16 {packedData  {offsetBits 0}} {
@@ -147,7 +149,8 @@ proc ::dlr::unpack::i16 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::u16 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  16  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  16  $offsetBits
 }
 
 proc ::dlr::unpack::u16 {packedData  {offsetBits 0}} {
@@ -155,7 +158,8 @@ proc ::dlr::unpack::u16 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::i32 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  32  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
 }
 
 proc ::dlr::unpack::i32 {packedData  {offsetBits 0}} {
@@ -163,7 +167,8 @@ proc ::dlr::unpack::i32 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::u32 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  32  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
 }
 
 proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
@@ -171,7 +176,8 @@ proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::i64 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  64  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  64  $offsetBits
 }
 
 proc ::dlr::unpack::i64 {packedData  {offsetBits 0}} {
@@ -179,7 +185,8 @@ proc ::dlr::unpack::i64 {packedData  {offsetBits 0}} {
 }
 
 proc   ::dlr::pack::u64 {packVarName  unpackedData  {offsetBits 0}} {
-    pack  $packVarName  $unpackedData  $::dlr::intEndian  64  $offsetBits
+    upvar 1 $packVarName packVar
+    pack  packVar  $unpackedData  $::dlr::intEndian  64  $offsetBits
 }
 
 proc ::dlr::unpack::u64 {packedData  {offsetBits 0}} {

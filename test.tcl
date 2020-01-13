@@ -123,3 +123,6 @@ loop attempt 2 5 {
     assert {[::dlr::unpack::int $resultBuf $( 3 * $::dlr::bits::int)] == 13 * $attempt}
 }
 
+# test local vars in pack api.
+::dlr::pack::int  myLocal  89
+assert {[::dlr::unpack::int $myLocal] == 89}
