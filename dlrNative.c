@@ -586,7 +586,7 @@ int packerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     }
     *bufP = (u8*)v->bytes + offset;
     
-    Jim_SetResultInt(itp, requiredLen); // offset for the next pack after this one.
+    Jim_SetResultInt(itp, requiredLen); // return the offset for the next pack after this one.
     return JIM_OK;
 }
 
@@ -628,19 +628,22 @@ int unpackerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     enum { 
         cmdIX = 0,
         packedValueIX,
-        offsetBytesIX,
+        offsetBytesVarNameIX,
         argCount
     };
     
-    if (objc > argCount || objc < offsetBytesIX) {
+    if (objc > argCount || objc < offsetBytesVarNameIX) {
         Jim_SetResultString(itp, "Wrong # args.", -1);
         return JIM_ERR;
     }
     
     jim_wide offset = 0;
-    if (objc > offsetBytesIX) {
-        if (Jim_GetWide(itp, objv[offsetBytesIX], &offset) != JIM_OK) {
-            Jim_SetResultString(itp, "Expected offset integer but got other data.", -1);
+    if (objc > offsetBytesVarNameIX) {
+        Jim_Obj* offsetVar = Jim_GetVariable(itp, objv[offsetBytesVarNameIX], JIM_ERRMSG);
+        if (offsetVar == NULL) return JIM_ERR;
+        if (Jim_GetWide(itp, offsetVar, &offset) != JIM_OK) {
+            Jim_SetResultFormatted(itp, "Expected offset integer in '%s' but got other data.", 
+                Jim_GetString(objv[offsetBytesVarNameIX], NULL));
             return JIM_ERR;
         }
         if (offset < 0) {
@@ -655,6 +658,12 @@ int unpackerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
         Jim_SetResultString(itp, "Packed value is too short.", -1);
         return JIM_ERR;
     }    
+
+    if (objc > offsetBytesVarNameIX) {
+        // save the offset for the next unpack after this one.
+        if (Jim_SetVariable(itp, objv[offsetBytesVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) 
+            return JIM_ERR;
+    }
 
     *bufP = (u8*)v->bytes + offset;    
     return JIM_OK;

@@ -28,6 +28,17 @@ proc assert {exp} {
     }
 }
 
+proc bench {label  reps  script} {
+    puts "$label:  reps=$reps"
+    flush stdout
+    set beginMs [clock milliseconds]
+    uplevel 1 loop attempt 0 $reps \{ $script \}
+    set elapse $([clock milliseconds] - $beginMs)
+    set each $(double($elapse) / double($reps) * 1000000.0)
+    puts [format "    time=%0.3fs  each=%0.1fus" $elapse $each]
+    flush stdout
+}
+
 puts paths=$::auto_path
 
 set version [package require dlr]
@@ -73,13 +84,16 @@ loop attempt 0 3 {
 if {$::argc == 1} {
     set reps $(int([lindex $::argv 0]))
     if {$reps > 0} {
-        puts reps=$reps
-        flush stdout
-        set beginMs [clock milliseconds]
-        loop attempt 0 $reps {   
+        bench callToNative $reps {
             ::dlr::callToNative  meta  
         }
-        puts time=[format %0.3f $(([clock milliseconds] - $beginMs) / 1000.0)]
+        bench pack3-and-call $($reps / 10) {   
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
+            set endP $::dlr::null
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
+            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+            ::dlr::callToNative  meta  
+        }
         exit 0
     }
 }
@@ -119,13 +133,10 @@ loop attempt 2 5 {
     
     set resultBuf [::dlr::callToNative  meta2]
     set ofs 0
-    assert {[::dlr::unpack::int $resultBuf $ofs] == 10 * $attempt}
-    incr ofs $::dlr::size::int
-    assert {[::dlr::unpack::int $resultBuf $ofs] == 11 * $attempt}
-    incr ofs $::dlr::size::int
-    assert {[::dlr::unpack::int $resultBuf $ofs] == 12 * $attempt}
-    incr ofs $::dlr::size::int
-    assert {[::dlr::unpack::int $resultBuf $ofs] == 13 * $attempt}
+    assert {[::dlr::unpack::int $resultBuf ofs] == 10 * $attempt}
+    assert {[::dlr::unpack::int $resultBuf ofs] == 11 * $attempt}
+    assert {[::dlr::unpack::int $resultBuf ofs] == 12 * $attempt}
+    assert {[::dlr::unpack::int $resultBuf ofs] == 13 * $attempt}
 }
 
 # test local vars in pack api.
