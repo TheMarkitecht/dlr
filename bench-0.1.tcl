@@ -21,6 +21,18 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
+proc bench {label  reps  script} {
+    puts "$label:  reps=$reps"
+    flush stdout
+    set beginMs [clock milliseconds]
+    uplevel 1 loop attempt 0 $reps \{ $script \}
+    set elapse $([clock milliseconds] - $beginMs)
+    set each $(double($elapse) / double($reps) * 1000000.0)
+    puts [format "    time=%0.3fs  each=%0.1fus" $elapse $each]
+    flush stdout
+}
+
+
 puts $::auto_path
 
 package require dlr
@@ -43,9 +55,23 @@ set endP $::dlr::nullPtr
 pack endPP [::dlr::addrOf endP] -intle $::dlr::sizeOfPtrBits
 
 pack radix 10 -intle $(8 * [::dlr::sizeOfInt])
-    
-loop attempt 0 30000000 {
-    ::dlr::callToNative  meta
+
+set reps $(int([lindex $::argv 0]))
+bench callToNative $reps {
+    ::dlr::callToNative  meta  
+}
+bench pack3 $($reps / 10) {   
+    pack strP $strPUnpack -intle $::dlr::sizeOfPtrBits
+    set endP $::dlr::nullPtr
+    pack endPP [::dlr::addrOf endP] -intle $::dlr::sizeOfPtrBits
+    pack radix 10 -intle $(8 * [::dlr::sizeOfInt])
+}
+bench pack3-and-call $($reps / 10) {   
+    pack strP $strPUnpack -intle $::dlr::sizeOfPtrBits
+    set endP $::dlr::nullPtr
+    pack endPP [::dlr::addrOf endP] -intle $::dlr::sizeOfPtrBits
+    pack radix 10 -intle $(8 * [::dlr::sizeOfInt])
+    ::dlr::callToNative  meta  
 }
 
 # unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
