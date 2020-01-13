@@ -25,6 +25,39 @@ set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
 #todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
 
+# ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
+proc ::dlr::loadLib {libAlias fileNamePath} {
+    set handle [native::loadLib $fileNamePath]
+    set ::dlr::libs($libAlias) $handle
+    return {}
+}
+
+proc ::dlr::fnAddr {fnName libAlias} {
+    return [native::fnAddr $fnName $::dlr::libs($libAlias)]
+}
+
+# #################  CONVERTERS  ####################################
+# converters are broken out into individual commands by data type.
+# that supports fast dispatch, and selective implementation of 
+# certain type conversions entirely in C.
+# those converters that are implemented in script should often rely on
+# Jim's built-in pack feature.  from the Jim manual:
+#   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
+#   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
+
+set ::dlr::examples {
+    # these examples actually worked, but are unused now.  int packers have moved to dlrNative in C.
+    
+    proc   ::dlr::pack::u32 {packVarName  unpackedData  {offsetBits 0}} {
+        upvar 1 $packVarName packVar
+        pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
+    }
+
+    proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
+        unpack $packedData $::dlr::intEndian $offsetBits 32
+    }
+}
+
 # ################  DLR SYSTEM DATA STRUCTURES  #################
 # for these, dlr script package extracts as much dimensional information as possible
 # from the host platform where dlrNative was actually compiled, helping portability.
@@ -110,40 +143,6 @@ foreach size {8 16 32 64} {
     }
 }
 
-# ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
-proc ::dlr::loadLib {libAlias fileNamePath} {
-    set handle [native::loadLib $fileNamePath]
-    set ::dlr::libs($libAlias) $handle
-    return {}
-}
-
-proc ::dlr::fnAddr {fnName libAlias} {
-    return [native::fnAddr $fnName $::dlr::libs($libAlias)]
-}
-
-# #################  CONVERTERS  ####################################
-# converters are broken out into individual commands by data type.
-# that supports fast dispatch, and selective implementation of 
-# certain type conversions entirely in C.
-# those converters that are implemented in script should often rely on
-# Jim's built-in pack feature.  from the Jim manual:
-#   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
-#   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
-
-set ::dlr::examples {
-    # these examples actually worked, but are unused now.  int packers have moved to dlrNative in C.
-    
-    proc   ::dlr::pack::u32 {packVarName  unpackedData  {offsetBits 0}} {
-        upvar 1 $packVarName packVar
-        pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
-    }
-
-    proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
-        unpack $packedData $::dlr::intEndian $offsetBits 32
-    }
-}
-
-# ################  MORE DLR SYSTEM DATA STRUCTURES  ############
 # pointer support
 set ::dlr::ptrFmt               0x%0$($::dlr::bits::ptr / 4)X
 # scripts should use $::dlr::null instead of packing their own nulls.
