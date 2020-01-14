@@ -38,8 +38,8 @@ proc ::dlr::initDlr {} {
     set ::dlr::endian               le
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
-    set ::dlr::libSrcDir            [file join [file dirname $::dlr::scriptPkg] source]
-    set ::dlr::libAutoDir           [file join [file dirname $::dlr::scriptPkg] auto]
+    set ::dlr::bindingSrcDir        [file join [file dirname $::dlr::scriptPkg] dlr-bindings source]
+    set ::dlr::bindingAutoDir       [file join [file dirname $::dlr::scriptPkg] dlr-bindings auto]
     set ::dlr::libs                 [dict create]
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
