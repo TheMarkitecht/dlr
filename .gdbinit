@@ -14,6 +14,9 @@ set solib-search-path .:..
 b jim-load.c:33
 r
 
+b Jim_ExecCmd
+c
+
 #b createBufferVar
 #c
 #b jim-pack.c:420
@@ -22,8 +25,8 @@ r
 #c
 #b packerSetup
 
-b unpackerSetup
-c
+#b unpackerSetup
+#c
 
 #b prepMetaBlob
 #b callToNative

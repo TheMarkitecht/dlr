@@ -36,6 +36,34 @@ proc ::dlr::fnAddr {fnName libAlias} {
     return [native::fnAddr $fnName $::dlr::libs($libAlias)]
 }
 
+# works with either gcc or clang.
+#todo: extract the member's type??
+proc ::dlr::compileType {typeName  includeCode  compilerOptions  members} {
+    foreach m $members {
+        append membCode "
+            printf(\"    {$m} {size %zu ofs %zu }\\n\", 
+                sizeof( a.$m ), offsetof($typeName, $m) );            
+        "
+    }
+    set src [open _temp_.c w]
+    puts $src "
+        #include <stddef.h>
+        #include <stdio.h>
+        $includeCode
+        
+        int main (int argc, char **argv) {
+            $typeName a;
+            printf(\"name {$typeName} size %zu members {\\n\", sizeof($typeName));
+            $membCode
+            puts(\"}\\n\");
+        }
+    "
+    close $src
+    exec {*}$compilerOptions  -o _temp_  _temp_.c
+    set dic [exec ./_temp_ ]
+    return $dic
+}
+
 # #################  CONVERTERS  ####################################
 # converters are broken out into individual commands by data type.
 # that supports fast dispatch, and selective implementation of 
@@ -147,3 +175,6 @@ foreach size {8 16 32 64} {
 set ::dlr::ptrFmt               0x%0$($::dlr::bits::ptr / 4)X
 # scripts should use $::dlr::null instead of packing their own nulls.
 ::dlr::pack::ptr  ::dlr::null  0 
+
+# compiler support
+set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]

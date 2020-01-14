@@ -144,3 +144,12 @@ loop attempt 2 5 {
 # test local vars in pack api.
 ::dlr::pack::int  myLocal  89
 assert {[::dlr::unpack::int $myLocal] == 89}
+
+# test extracting type metadata from C.
+set inc {
+    #include "dlrTestLib.c"
+}
+set dic [::dlr::compileType  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
+puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
+assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
+assert {[dict get $dic members c size] == $::dlr::size::int}
