@@ -50,10 +50,9 @@ proc ::dlr::lib::testLib::mulByValue::call {st  factor} {
     ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  $memb_d  $ofs_d
     ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::factor  $factor
     set resultPacked [::dlr::callToNative  ::dlr::lib::testLib::mulByValue::meta]
-    lassign $offsetsMeta ofs_a  ofs_b  ofs_c  ofs_d
     return [list  \
-        [::dlr::unpack::int $resultPacked ofs_a]  \
-        [::dlr::unpack::int $resultPacked ofs_b]  \
-        [::dlr::unpack::int $resultPacked ofs_c]  \
-        [::dlr::unpack::int $resultPacked ofs_d]  ]
+        [::dlr::unpack::int $resultPacked $ofs_a]  \
+        [::dlr::unpack::int $resultPacked $ofs_b]  \
+        [::dlr::unpack::int $resultPacked $ofs_c]  \
+        [::dlr::unpack::int $resultPacked $ofs_d]  ]
 }

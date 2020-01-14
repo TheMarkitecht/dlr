@@ -26,22 +26,23 @@
 set -e
 set -x
 
+# builder settings
 project=`pwd`
 optim=0
 compile="-I.  -I../../jimsh    -pipe -g3 -O$optim -Wall -fPIC -std=c11 -c"
 linkSO="-pipe -g3 -O$optim -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared"
 
-# "dlr" extension for Jim.
+# build "dlr" extension for Jim.
 cd $project/dlrNative-src
 gcc $compile -o dlrNative.o  dlrNative.c
 gcc $linkSO -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
 
-# testLib.so
+# build testLib.so
 cd $project/testLib-src
 gcc $compile -o testLib.o  testLib.c
 gcc $linkSO -o testLib.so  testLib.o 
 
-# test runs
+# run tests
 cd $project
 export JIMLIB=$project/dlr:$project/dlrNative-src
 ./jimsh  test.tcl
@@ -50,4 +51,5 @@ valgrind  -q  --leak-check=full  --leak-resolution=high  \
     --show-leak-kinds=definite,possible  --errors-for-leak-kinds=definite,possible  \
     ./jimsh  test.tcl
 
-./jimsh  test.tcl  30000000
+# speed benchmark
+# ./jimsh  test.tcl  30000000

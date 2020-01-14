@@ -151,7 +151,6 @@ int fnAddr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 }
 
 // return a dict of dimensions of types on the host platform where dlr was built.
-//todo: command for sizeof any type, such as structs.  obsoletes sizeOfTypes?  requires another command to locate any type metadata before extracting size??
 int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     Jim_Obj* lens[] = {
         Jim_NewStringObj(itp, "char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.
@@ -548,6 +547,7 @@ int packerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
         packVarNameIX,
         unpackedDataIX,
         offsetBytesIX,
+        nextOffsetVarNameIX,
         argCount
     };
     
@@ -586,7 +586,14 @@ int packerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     }
     *bufP = (u8*)v->bytes + offset;
     
-    Jim_SetResultInt(itp, requiredLen); // return the offset for the next pack after this one.
+    if (objc > nextOffsetVarNameIX) {
+        // memorize the offset for the next operation after this one.
+        if (Jim_SetVariable(itp, objv[nextOffsetVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) {
+            Jim_SetResultString(itp, "Failed to memorize next offset.", -1);
+            return JIM_ERR;
+        }
+    }
+    
     return JIM_OK;
 }
 
@@ -628,22 +635,20 @@ int unpackerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     enum { 
         cmdIX = 0,
         packedValueIX,
-        offsetBytesVarNameIX,
+        offsetBytesIX,
+        nextOffsetVarNameIX,
         argCount
     };
     
-    if (objc > argCount || objc < offsetBytesVarNameIX) {
+    if (objc > argCount || objc < offsetBytesIX) {
         Jim_SetResultString(itp, "Wrong # args.", -1);
         return JIM_ERR;
     }
     
     jim_wide offset = 0;
-    if (objc > offsetBytesVarNameIX) {
-        Jim_Obj* offsetVar = Jim_GetVariable(itp, objv[offsetBytesVarNameIX], JIM_ERRMSG);
-        if (offsetVar == NULL) return JIM_ERR;
-        if (Jim_GetWide(itp, offsetVar, &offset) != JIM_OK) {
-            Jim_SetResultFormatted(itp, "Expected offset integer in '%s' but got other data.", 
-                Jim_GetString(objv[offsetBytesVarNameIX], NULL));
+    if (objc > offsetBytesIX) {
+        if (Jim_GetWide(itp, objv[offsetBytesIX], &offset) != JIM_OK) {
+            Jim_SetResultString(itp, "Expected offset integer but got other data.", -1);
             return JIM_ERR;
         }
         if (offset < 0) {
@@ -659,10 +664,12 @@ int unpackerSetup(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
         return JIM_ERR;
     }    
 
-    if (objc > offsetBytesVarNameIX) {
-        // save the offset for the next unpack after this one.
-        if (Jim_SetVariable(itp, objv[offsetBytesVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) 
+    if (objc > nextOffsetVarNameIX) {
+        // memorize the offset for the next operation after this one.
+        if (Jim_SetVariable(itp, objv[nextOffsetVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) {
+            Jim_SetResultString(itp, "Failed to memorize next offset.", -1);
             return JIM_ERR;
+        }
     }
 
     *bufP = (u8*)v->bytes + offset;    

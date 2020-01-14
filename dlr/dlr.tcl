@@ -198,7 +198,6 @@ proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  m
 
 #todo: supply example packers and unpackers.
 
-#todo: make all converters take 2 optional args:  offsetBytes, and beyondOffsetVarName.  if offsetBytes is given, use that int to place the data.  if beyondOffsetVarName is given, write to that var the offset + sizeof.
 #todo: more converters for passing by pointer etc.  assume existing ones are for pass-by-value.
 #todo: more converters for list-as-struct, and for handling structs as blobs (no conversion, for speed).
 
