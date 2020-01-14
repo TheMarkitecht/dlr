@@ -106,25 +106,14 @@ if {$::argc == 1} {
     }
 }
 
-exit 0 ;# todo
-
 # mulByValue test
+alias  mulByValue  ::dlr::lib::testLib::mulByValue::call
 loop attempt 2 5 {
-    #todo: fetch sizeof arbitrary type, and offsetof, to allow for padding here.  for now it just allocates oversize.
-    ::dlr::createBufferVar  ::dlr::lib::testLib::mulByValue::parm::st  32
-    
-    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  10]
-    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  11  $ofs]
-    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  12  $ofs]
-    set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  13  $ofs]
-    ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::factor  $attempt
-    
-    set resultBuf [::dlr::lib::testLib::mulByValue::call]
-    set ofs 0
-    assert {[::dlr::unpack::int $resultBuf ofs] == 10 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf ofs] == 11 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf ofs] == 12 * $attempt}
-    assert {[::dlr::unpack::int $resultBuf ofs] == 13 * $attempt}
+    lassign [mulByValue {10 11 12 13} $attempt] a b c d
+    assert {$a == 10 * $attempt}
+    assert {$b == 11 * $attempt}
+    assert {$c == 12 * $attempt}
+    assert {$d == 13 * $attempt}
 }
 
 # allocHeap test

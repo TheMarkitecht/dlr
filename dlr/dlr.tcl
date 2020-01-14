@@ -191,22 +191,15 @@ proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  m
 # converters are broken out into individual commands by data type.
 # that supports fast dispatch, and selective implementation of 
 # certain type conversions entirely in C.
-# those converters that are implemented in script should often rely on
-# Jim's built-in pack feature.  from the Jim manual:
+# those converters that are implemented in script should often rely on dlr packers, or 
+# (slower) Jim's built-in pack feature.  from the Jim manual:
 #   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 
-set ::dlr::examples {
-    # these examples actually worked, but are unused now.  int packers have moved to dlrNative in C.
-    
-    proc   ::dlr::pack::u32 {packVarName  unpackedData  {offsetBits 0}} {
-        upvar 1 $packVarName packVar
-        pack  packVar  $unpackedData  $::dlr::intEndian  32  $offsetBits
-    }
+#todo: supply example packers and unpackers.
 
-    proc ::dlr::unpack::u32 {packedData  {offsetBits 0}} {
-        unpack $packedData $::dlr::intEndian $offsetBits 32
-    }
-}
+#todo: make all converters take 2 optional args:  offsetBytes, and beyondOffsetVarName.  if offsetBytes is given, use that int to place the data.  if beyondOffsetVarName is given, write to that var the offset + sizeof.
+#todo: more converters for passing by pointer etc.  assume existing ones are for pass-by-value.
+#todo: more converters for list-as-struct, and for handling structs as blobs (no conversion, for speed).
 
 ::dlr::initDlr

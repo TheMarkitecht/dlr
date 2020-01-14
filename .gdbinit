@@ -9,13 +9,13 @@ db stack -style limit 8
 file ./jimsh
 set args test.tcl
 set cwd .
+set env JIMLIB=./dlr:./dlrNative-src
 set solib-search-path .:..
 
 b jim-load.c:33
 r
 
-b Jim_ExecCmd
-c
+#b Jim_ExecCmd
 
 #b createBufferVar
 #c
@@ -35,7 +35,7 @@ c
 # during break at 191:  watch -l meta->cif.arg_types[0]
 #display *((metaBlobT*)0x5555555dbab0)->cif.arg_types
 #b Jim_FreeObj if objPtr == 0x5555555dbb00
-#b dlrNative.c:349
+b dlrNative.c:568
 #p script->linenr
 #b Jim_GenHashFunction
 #commands 
