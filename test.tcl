@@ -68,22 +68,17 @@ assert {[dict get $dic members c size] == $::dlr::size::int}
 ::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
 
 # strtolWrap test
+alias  strtol  ::dlr::lib::testLib::strtolWrap::call
 loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
     puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
     set endP $::dlr::null
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
-    ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
-    
-    set resultUnpack [::dlr::unpack::int [::dlr::lib::testLib::strtolWrap::call]]
-    puts $myNum=$resultUnpack
-    assert {$resultUnpack == $myNum}
-    
-    set endPUnpack [unpack $endP -intle 0 $::dlr::bits::ptr]
-    set len $($endPUnpack - [::dlr::addrOf myNum])
-    puts endP=[format $::dlr::ptrFmt $endPUnpack]
+    set resultUnpacked [strtol  $myNum  endP  10]
+    puts $myNum=$resultUnpacked
+    assert {$resultUnpacked == $myNum}
+    set len $($endP - [::dlr::addrOf myNum])
+    puts endP=[format $::dlr::ptrFmt $endP]
     puts len=$len
     assert {$len == [string length $myNum]}
 }
@@ -93,25 +88,25 @@ loop attempt 0 3 {
 if {$::argc == 1} {
     set reps $(int([lindex $::argv 0]))
     if {$reps > 0} {
-        bench callToNative $reps {
-            ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
+        set str 905
+        set endP $::dlr::null
+        bench fullWrap $reps {
+            strtol  $str  endP  10
         }
         bench pack3 $($reps / 10) {   
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
-            set endP $::dlr::null
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
-            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
+            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
+            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  $radix
         }
-        bench pack3-and-call $($reps / 10) {   
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
-            set endP $::dlr::null
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
-            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+        bench callToNative $reps {
             ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
         }
         exit 0
     }
 }
+
+exit 0 ;# todo
 
 # mulByValue test
 loop attempt 2 5 {
