@@ -50,4 +50,4 @@ valgrind  -q  --leak-check=full  --leak-resolution=high  \
     --show-leak-kinds=definite,possible  --errors-for-leak-kinds=definite,possible  \
     ./jimsh  test.tcl
 
-# time ./jimsh bench.tcl
+./jimsh  test.tcl  30000000

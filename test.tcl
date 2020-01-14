@@ -35,9 +35,9 @@ proc bench {label  reps  script} {
     flush stdout
     set beginMs [clock milliseconds]
     uplevel 1 loop attempt 0 $reps \{ $script \}
-    set elapse $([clock milliseconds] - $beginMs)
-    set each $(double($elapse) / double($reps) * 1000000.0)
-    puts [format "    time=%0.3fs  each=%0.1fus" $elapse $each]
+    set elapseMs $([clock milliseconds] - $beginMs)
+    set eachUs $(double($elapseMs) / double($reps) * 1000.0)
+    puts [format "    time=%0.3fs  each=%0.1fus" $(double($elapseMs) / 1000.0) $eachUs]
     flush stdout
 }
 
@@ -90,14 +90,14 @@ if {$::argc == 1} {
     if {$reps > 0} {
         set str 905
         set endP $::dlr::null
-        bench fullWrap $reps {
+        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
+        bench fullWrap $($reps / 10) {
             strtol  $str  endP  10
         }
         bench pack3 $($reps / 10) {   
             ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
             ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
-            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  $radix
+            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
         }
         bench callToNative $reps {
             ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
