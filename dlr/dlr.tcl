@@ -139,24 +139,28 @@ proc ::dlr::fnAddr {fnName libAlias} {
     return [native::fnAddr $fnName $::dlr::libs($libAlias)]
 }
 
-#todo: extract the struct member's type??
-
-#todo: combine this info with all that declared in the new front-end syntax.
-#   save both handwritten and generated declarations into .tcl files side-by-side 
-#   in a dir tree based on library and type names.  when loading a library, automatically source those.
-#   put that tree in a "dlr-meta" subdir of the dir where dlr.tcl was found.
+proc ::dlr::loadAutoStructTypes {libAlias} {
+    set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
+    #todo
+}
 
 # works with either gcc or clang.
+# struct layout metadata is returned, and also cached in the binding dir.
 proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  members} {
-    set cfn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
-    set binfn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
+    # determine paths.
+    set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
+    set binFn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
+    set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
+    
+    # generate C source code to extract metadata.
     foreach m $members {
+        #todo: extract the struct member's type??
         append membCode "
             printf(\"    {$m} {size %zu ofs %zu }\\n\", 
                 sizeof( a.$m ), offsetof($typeName, $m) );            
         "
     }
-    set src [open $cfn w]
+    set src [open $cFn w]
     puts $src "
         #include <stddef.h>
         #include <stdio.h>
@@ -170,8 +174,16 @@ proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  m
         }
     "
     close $src
-    exec {*}$compilerOptions  -o $binfn  $cfn
-    set dic [exec $binfn ]
+    
+    # compile and execute C code.
+    exec {*}$compilerOptions  -o $binFn  $cFn
+    set dic [exec $binFn]
+    
+    # cache metadata in binding dir.
+    set lay [open $layoutFn w]
+    puts $lay $dic
+    close $lay
+    
     return $dic
 }
 

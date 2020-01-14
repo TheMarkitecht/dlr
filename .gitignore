@@ -1,4 +1,4 @@
 .gdb_history
 *.o
 *.so
-getStructLayout*
+**/auto/

@@ -49,18 +49,25 @@ puts version=$version
 puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
 
+# test local vars in pack api.
+::dlr::pack::int  myLocal  89
+assert {[::dlr::unpack::int $myLocal] == 89}
+
+# test extracting type metadata from C.
+# normally this would be done by including a .h file, but in this test we include 
+# a .c file instead, and from a specific path.
+set inc "
+    #include \"[file join $::appDir testLib-src testLib.c]\"
+"
+set dic [::dlr::getStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
+puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
+assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
+assert {[dict get $dic members c size] == $::dlr::size::int}
+
+# load the library binding that was generated just now.
 ::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
 
-# strtol test
-set ::dlr::lib::testLib::strtolWrap::parmOrder {
-    ::dlr::lib::testLib::strtolWrap::parm::strP
-    ::dlr::lib::testLib::strtolWrap::parm::endPP
-    ::dlr::lib::testLib::strtolWrap::parm::radix
-}
-::dlr::prepMetaBlob  meta  [::dlr::fnAddr  strtolWrap  testLib]  \
-    ::dlr::lib::testLib::strtolWrap::result  ::dlr::type::long  \
-    $::dlr::lib::testLib::strtolWrap::parmOrder  \
-    [list  ::dlr::type::ptr  ::dlr::type::ptr  ::dlr::type::int]
+# strtolWrap test
 loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
@@ -70,7 +77,7 @@ loop attempt 0 3 {
     ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
     ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
     
-    set resultUnpack [::dlr::unpack::int [::dlr::callToNative  meta]]
+    set resultUnpack [::dlr::unpack::int [::dlr::lib::testLib::strtolWrap::call]]
     puts $myNum=$resultUnpack
     assert {$resultUnpack == $myNum}
     
@@ -87,7 +94,7 @@ if {$::argc == 1} {
     set reps $(int([lindex $::argv 0]))
     if {$reps > 0} {
         bench callToNative $reps {
-            ::dlr::callToNative  meta  
+            ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
         }
         bench pack3 $($reps / 10) {   
             ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf myNum]
@@ -100,31 +107,13 @@ if {$::argc == 1} {
             set endP $::dlr::null
             ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP  [::dlr::addrOf endP]
             ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
-            ::dlr::callToNative  meta  
+            ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
         }
         exit 0
     }
 }
 
-# allocHeap test
-loop attempt 0 3 {
-    set chunk [::dlr::allocHeap 0x400000]
-    puts chunk=[format $::dlr::ptrFmt $chunk]
-    # todo: call memcpy() from dlr-libc
-    ::dlr::freeHeap $chunk
-}
-
 # mulByValue test
-::dlr::prepStructType  ::dlr::lib::testLib::mulByValueT  [list  \
-    ::dlr::type::int  ::dlr::type::int  ::dlr::type::int  ::dlr::type::int]
-set ::dlr::lib::testLib::mulByValue::parmOrder {
-    ::dlr::lib::testLib::mulByValue::parm::st
-    ::dlr::lib::testLib::mulByValue::parm::factor
-}
-::dlr::prepMetaBlob  meta2  [::dlr::fnAddr  mulByValue  testLib]  \
-    ::dlr::lib::testLib::mulByValue::result  ::dlr::lib::testLib::mulByValueT  \
-    $::dlr::lib::testLib::mulByValue::parmOrder  \
-    [list  ::dlr::lib::testLib::mulByValueT  ::dlr::type::int]
 loop attempt 2 5 {
     #todo: fetch sizeof arbitrary type, and offsetof, to allow for padding here.  for now it just allocates oversize.
     ::dlr::createBufferVar  ::dlr::lib::testLib::mulByValue::parm::st  32
@@ -135,7 +124,7 @@ loop attempt 2 5 {
     set ofs [::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::st  13  $ofs]
     ::dlr::pack::int  ::dlr::lib::testLib::mulByValue::parm::factor  $attempt
     
-    set resultBuf [::dlr::callToNative  meta2]
+    set resultBuf [::dlr::lib::testLib::mulByValue::call]
     set ofs 0
     assert {[::dlr::unpack::int $resultBuf ofs] == 10 * $attempt}
     assert {[::dlr::unpack::int $resultBuf ofs] == 11 * $attempt}
@@ -143,17 +132,12 @@ loop attempt 2 5 {
     assert {[::dlr::unpack::int $resultBuf ofs] == 13 * $attempt}
 }
 
-# test local vars in pack api.
-::dlr::pack::int  myLocal  89
-assert {[::dlr::unpack::int $myLocal] == 89}
+# allocHeap test
+loop attempt 0 3 {
+    set chunk [::dlr::allocHeap 0x400000]
+    puts chunk=[format $::dlr::ptrFmt $chunk]
+    # todo: call memcpy() from dlr-libc
+    ::dlr::freeHeap $chunk
+}
 
-# test extracting type metadata from C.
-# normally this would be done by including a .h file, but in this test we include 
-# a .c file instead, and from a specific path.
-set inc "
-    #include \"[file join $::appDir testLib-src testLib.c]\"
-"
-set dic [::dlr::getStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
-puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
-assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
-assert {[dict get $dic members c size] == $::dlr::size::int}
+
