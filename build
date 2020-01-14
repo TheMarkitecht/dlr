@@ -2,19 +2,24 @@
 set -e
 set -x
 
+project=`pwd`
 optim=0
-compile="-I.  -I../jimsh    -pipe -g3 -O$optim -Wall -fPIC -std=c11 -c"
-link="-pipe -g3 -O$optim -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared"
+compile="-I.  -I../../jimsh    -pipe -g3 -O$optim -Wall -fPIC -std=c11 -c"
+linkSO="-pipe -g3 -O$optim -Wall -fPIC -std=c11 -Wl,--export-dynamic  -shared"
 
 # "dlr" extension for Jim.
+cd $project/dlrNative-src
 gcc $compile -o dlrNative.o  dlrNative.c
-gcc $link -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
+gcc $linkSO -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
 
 # dlrTestLib.so
+cd $project/dlrTestLib-src
 gcc $compile -o dlrTestLib.o  dlrTestLib.c
-gcc $link -o dlrTestLib.so  dlrTestLib.o 
+gcc $linkSO -o dlrTestLib.so  dlrTestLib.o 
 
 # test runs
+cd $project
+export JIMLIB=$project/dlr:$project/dlrNative-src
 ./jimsh  test.tcl
 
 valgrind  -q  --leak-check=full  --leak-resolution=high  \

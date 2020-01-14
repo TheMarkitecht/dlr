@@ -21,6 +21,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
+set ::appDir [file dirname [info script]]
+
 proc assert {exp} {
     set truth [uplevel 1 [list expr $exp]]
     if { ! $truth} {
@@ -47,7 +49,7 @@ puts version=$version
 puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
 
-::dlr::loadLib  testLib  ./dlrTestLib.so
+::dlr::loadLib  testLib  dlrTestLib-src/dlrTestLib.so
 
 # strtol test
 set ::dlr::lib::testLib::strtolWrap::parmOrder {
@@ -146,9 +148,11 @@ loop attempt 2 5 {
 assert {[::dlr::unpack::int $myLocal] == 89}
 
 # test extracting type metadata from C.
-set inc {
-    #include "dlrTestLib.c"
-}
+# normally this would be done by including a .h file, but in this test we include 
+# a .c file instead, and from a specific path.
+set inc "
+    #include \"[file join $::appDir dlrTestLib-src dlrTestLib.c]\"
+"
 set dic [::dlr::compileType  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
 puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
 assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.

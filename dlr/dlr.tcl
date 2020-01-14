@@ -21,6 +21,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
+set ::dlr::scriptPkg [info script]
+
 set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
 #todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
@@ -36,8 +38,14 @@ proc ::dlr::fnAddr {fnName libAlias} {
     return [native::fnAddr $fnName $::dlr::libs($libAlias)]
 }
 
+#todo: extract the struct member's type??
+
+#todo: combine this info with all that declared in the new front-end syntax.
+#   save both handwritten and generated declarations into .tcl files side-by-side 
+#   in a dir tree based on library and type names.  when loading a library, automatically source those.
+#   put that tree in a "dlr-meta" subdir of the dir where dlr.tcl was found.
+
 # works with either gcc or clang.
-#todo: extract the member's type??
 proc ::dlr::compileType {typeName  includeCode  compilerOptions  members} {
     foreach m $members {
         append membCode "
@@ -86,6 +94,8 @@ set ::dlr::examples {
     }
 }
 
+#todo: move all this code to ::dlr::initDlr so any locals it sets aren't globals.
+
 # ################  DLR SYSTEM DATA STRUCTURES  #################
 # for these, dlr script package extracts as much dimensional information as possible
 # from the host platform where dlrNative was actually compiled, helping portability.
@@ -94,6 +104,8 @@ set ::dlr::examples {
 set ::dlr::endian               le
 set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
 set ::dlr::floatEndian          -float$::dlr::endian
+set ::dlr::libSrcDir            [file join [file dirname $::dlr::scriptPkg] source]
+set ::dlr::libAutoDir           [file join [file dirname $::dlr::scriptPkg] auto]
 set ::dlr::libs                 [dict create]
 set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
 set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
