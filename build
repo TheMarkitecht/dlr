@@ -12,10 +12,10 @@ cd $project/dlrNative-src
 gcc $compile -o dlrNative.o  dlrNative.c
 gcc $linkSO -o dlrNative.so  dlrNative.o  /usr/lib/x86_64-linux-gnu/libffi.a 
 
-# dlrTestLib.so
-cd $project/dlrTestLib-src
-gcc $compile -o dlrTestLib.o  dlrTestLib.c
-gcc $linkSO -o dlrTestLib.so  dlrTestLib.o 
+# testLib.so
+cd $project/testLib-src
+gcc $compile -o testLib.o  testLib.c
+gcc $linkSO -o testLib.so  testLib.o 
 
 # test runs
 cd $project

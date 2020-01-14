@@ -49,7 +49,7 @@ puts version=$version
 puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
 
-::dlr::loadLib  testLib  dlrTestLib-src/dlrTestLib.so
+::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
 
 # strtol test
 set ::dlr::lib::testLib::strtolWrap::parmOrder {
@@ -151,9 +151,9 @@ assert {[::dlr::unpack::int $myLocal] == 89}
 # normally this would be done by including a .h file, but in this test we include 
 # a .c file instead, and from a specific path.
 set inc "
-    #include \"[file join $::appDir dlrTestLib-src dlrTestLib.c]\"
+    #include \"[file join $::appDir testLib-src testLib.c]\"
 "
-set dic [::dlr::compileType  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
+set dic [::dlr::getStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
 puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
 assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
 assert {[dict get $dic members c size] == $::dlr::size::int}

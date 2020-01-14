@@ -38,8 +38,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::endian               le
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
-    set ::dlr::bindingSrcDir        [file join [file dirname $::dlr::scriptPkg] dlr-bindings source]
-    set ::dlr::bindingAutoDir       [file join [file dirname $::dlr::scriptPkg] dlr-bindings auto]
+    set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
     set ::dlr::libs                 [dict create]
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
@@ -131,6 +130,8 @@ proc ::dlr::initDlr {} {
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libs($libAlias) $handle
+    source [file join $::dlr::bindingDir $libAlias auto   $libAlias.tcl]
+    source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
 }
 
@@ -146,14 +147,16 @@ proc ::dlr::fnAddr {fnName libAlias} {
 #   put that tree in a "dlr-meta" subdir of the dir where dlr.tcl was found.
 
 # works with either gcc or clang.
-proc ::dlr::compileType {typeName  includeCode  compilerOptions  members} {
+proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  members} {
+    set cfn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
+    set binfn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
     foreach m $members {
         append membCode "
             printf(\"    {$m} {size %zu ofs %zu }\\n\", 
                 sizeof( a.$m ), offsetof($typeName, $m) );            
         "
     }
-    set src [open _temp_.c w]
+    set src [open $cfn w]
     puts $src "
         #include <stddef.h>
         #include <stdio.h>
@@ -167,8 +170,8 @@ proc ::dlr::compileType {typeName  includeCode  compilerOptions  members} {
         }
     "
     close $src
-    exec {*}$compilerOptions  -o _temp_  _temp_.c
-    set dic [exec ./_temp_ ]
+    exec {*}$compilerOptions  -o $binfn  $cfn
+    set dic [exec $binfn ]
     return $dic
 }
 
