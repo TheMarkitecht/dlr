@@ -139,14 +139,55 @@ proc ::dlr::fnAddr {fnName libAlias} {
     return [native::fnAddr $fnName $::dlr::libs($libAlias)]
 }
 
-proc ::dlr::loadAutoStructTypes {libAlias} {
-    set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
-    #todo
+proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
+    set typ $structTypeName
+    
+    # load up the type information previously detected and cached on disk.
+    set layoutFn [file join $::dlr::bindingDir $libAlias auto $typ.struct]
+    if { ! [file readable $layoutFn]} {
+        error "Structure layout metadata was not detected for library '$libAlias' type '$typeName'."
+    }
+    set f [open $layoutFn r]
+    set sDic [read $f]
+    close $f
+
+    # unpack metadata from the given declaration and merge it with the cached detected info.
+    #todo: support nested structs.
+    set ::dlr::lib::${libAlias}::struct::${typ}::size $sDic(size)
+    set membersRemain [dict keys $sDic(members)]
+    set ::dlr::lib::${libAlias}::struct::${typ}::memberOrder $membersRemain
+    set typeVars [list]
+    foreach {mDescrip} $membersDescrip {
+        lassign $mDescrip mTypeName mName
+        set ix [lsearch $membersRemain $mName]
+        if {$ix < 0} {
+            error "Library '$libAlias' struct '$typ' member '$mName' is not found in the detected metadata."
+        }
+        set membersRemain [lreplace $membersRemain $ix $ix]        
+        if {"::dlr::type::$mTypeName" ni [info vars ::dlr::type::*]} {
+            error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
+        }
+        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::typeName $mTypeName
+        set typeVar ::dlr::type::$mTypeName
+        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::typeCode [set $typeVar]
+        lappend typeVars $typeVar
+        set mDic [dict get $sDic members $mName]
+        if {$mDic(size) != [set ::dlr::size::$mTypeName]} {
+            error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
+        }
+        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::offset $mDic(offset)
+    }
+    if {[llength $membersRemain] > 0} {
+        error "Library '$libAlias' struct '$typ' member '[lindex $membersRemain 0]' is mentioned in the detected metadata but not in the given declaration."
+    }
+    
+    # prep FFI type record for this structure.
+    ::dlr::prepStructType  ::dlr::lib::${libAlias}::struct::${typ}::meta  $typeVars   
 }
 
 # works with either gcc or clang.
 # struct layout metadata is returned, and also cached in the binding dir.
-proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  members} {
+proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions  members} {
     # determine paths.
     set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
     set binFn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
@@ -156,7 +197,7 @@ proc ::dlr::getStructLayout {libAlias  typeName  includeCode  compilerOptions  m
     foreach m $members {
         #todo: extract the struct member's type??
         append membCode "
-            printf(\"    {$m} {size %zu ofs %zu }\\n\", 
+            printf(\"    {$m} {size %zu offset %zu }\\n\", 
                 sizeof( a.$m ), offsetof($typeName, $m) );            
         "
     }

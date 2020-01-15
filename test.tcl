@@ -59,9 +59,9 @@ assert {[::dlr::unpack::int $myLocal] == 89}
 set inc "
     #include \"[file join $::appDir testLib-src testLib.c]\"
 "
-set dic [::dlr::getStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
-puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c ofs]"
-assert {[dict get $dic members a ofs] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
+set dic [::dlr::detectStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
+puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
+assert {[dict get $dic members a offset] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
 assert {[dict get $dic members c size] == $::dlr::size::int}
 
 # load the library binding that was generated just now.

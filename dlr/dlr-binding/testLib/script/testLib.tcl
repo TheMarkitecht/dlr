@@ -1,7 +1,5 @@
 # this script sets up all metdata required to use the library "testLib".
 
-::dlr::loadAutoStructTypes  testLib
-
 # strtolWrap
 set ::dlr::lib::testLib::strtolWrap::parmOrder {
     ::dlr::lib::testLib::strtolWrap::parm::strP
@@ -26,17 +24,21 @@ proc ::dlr::lib::testLib::strtolWrap::call {str  &endPVar  radix} {
 
 # mulByValueT
 #todo: merge in here the extracted struct layout metadata.
-::dlr::prepStructType  ::dlr::lib::testLib::mulByValueT  [list  \
-    ::dlr::type::int  ::dlr::type::int  ::dlr::type::int  ::dlr::type::int]
+declareStructType  testLib  mulByValueT  {
+    {int a}
+    {int b}
+    {int c}
+    {int d}
+}
 set ::dlr::lib::testLib::mulByValue::parmOrder {
     ::dlr::lib::testLib::mulByValue::parm::st
     ::dlr::lib::testLib::mulByValue::parm::factor
 }
 ::dlr::prepMetaBlob  ::dlr::lib::testLib::mulByValue::meta  \
     [::dlr::fnAddr  mulByValue  testLib]  \
-    ::dlr::lib::testLib::mulByValue::result  ::dlr::lib::testLib::mulByValueT  \
+    ::dlr::lib::testLib::mulByValue::result  ::dlr::lib::testLib::struct::mulByValueT::meta  \
     $::dlr::lib::testLib::mulByValue::parmOrder  \
-    [list  ::dlr::lib::testLib::mulByValueT  ::dlr::type::int]
+    [list  ::dlr::lib::testLib::struct::mulByValueT::meta  ::dlr::type::int]
 
 proc ::dlr::lib::testLib::mulByValue::call {st  factor} {
     #todo: fetch sizeof arbitrary type, and offsetof, to allow for padding here.  for now it just allocates oversize.
