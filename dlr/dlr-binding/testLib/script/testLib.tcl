@@ -3,9 +3,9 @@
 # strtolWrap
 #todo: upgrade with better passMethod's and scriptForm's.  binary, int, float, list (for structs), dict (for structs).
 ::dlr::declareCallToNative  testLib  long  strtolWrap  {
-    {in     byVal           ptr         strP            {}}
-    {out    byPtr           ptr         endPP           {}}
-    {in     byVal           int         radix           {}}
+    {in     byVal   ptr         strP            {}}
+    {out    byPtr   ptr         endPP           {}}
+    {in     byVal   int         radix           {}}
 }
 
 proc ::dlr::lib::testLib::strtolWrap::call {str  &endPVar  radix} {
@@ -13,28 +13,22 @@ proc ::dlr::lib::testLib::strtolWrap::call {str  &endPVar  radix} {
     ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP::native  [::dlr::addrOf endPVar]
     ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP::native [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP::native]
     ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix::native $radix
-#debugscript begin    
     set resultPacked [::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta]
     set endPVar [::dlr::unpack::ptr  $::dlr::lib::testLib::strtolWrap::parm::endP::native]
     return [::dlr::unpack::int $resultPacked]
 }
 
-# mulByValueT
+# mulByValue
 ::dlr::declareStructType  testLib  mulByValueT  {
     {int a}
     {int b}
     {int c}
     {int d}
 }
-set ::dlr::lib::testLib::mulByValue::parmOrder {
-    ::dlr::lib::testLib::mulByValue::parm::st::native
-    ::dlr::lib::testLib::mulByValue::parm::factor::native
+::dlr::declareCallToNative  testLib  mulByValueT  mulByValue  {
+    {in     byVal   mulByValueT     st              {}}
+    {in     byVal   int             factor          {}}
 }
-::dlr::prepMetaBlob  ::dlr::lib::testLib::mulByValue::meta  \
-    [::dlr::fnAddr  mulByValue  testLib]  \
-    ::dlr::lib::testLib::mulByValue::result  ::dlr::lib::testLib::struct::mulByValueT::meta  \
-    $::dlr::lib::testLib::mulByValue::parmOrder  \
-    [list  ::dlr::lib::testLib::struct::mulByValueT::meta  ::dlr::type::int]
 
 proc ::dlr::lib::testLib::mulByValue::call {st  factor} {
     lassign $st memb_a  memb_b  memb_c  memb_d

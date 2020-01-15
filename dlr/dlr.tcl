@@ -129,6 +129,7 @@ proc ::dlr::initDlr {} {
 
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
+    #todo: eliminate libs array
     set ::dlr::libs($libAlias) $handle
     source [file join $::dlr::bindingDir $libAlias auto   $libAlias.tcl]
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
@@ -143,16 +144,35 @@ proc ::dlr::isStructType {typeVarName} {
     return [string match *::struct::* $type]
 }
 
-# qualify any unqualified type name, to assume it's one of the simple types in ::dlr::type::.
-# or, a name already qualified is returned as-is.
-proc ::dlr::qualifyTypeName {typeVarName} {
-    return $( [string match *::* $typeVarName] ? $typeVarName : "::dlr::type::$typeVarName" )
+# qualify any unqualified type name.
+# a name already qualified is returned as-is.
+# others are tested to see if they exist in the given library.  if so, return that one.
+# others are tested to see if they're one of the simple types in ::dlr::type.  if so, return that one.
+# otherwise, notFoundAction is implemented.  that can be "error" (the default),
+# or an empty string to ignore the problem and return an empty string instead.
+# structs are always resolved to the name of their metablob variable, ready for passing to dlrNative.
+proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
+    if {[string match *::* $typeVarName]} {
+        return $typeVarName
+    } 
+    # here we assume that libs describe only structs, never simple types.
+    set meta ::dlr::lib::${libAlias}::struct::${typeVarName}::meta
+    if {[info exists $meta]} {
+        return $meta
+    }
+    if {[info exists ::dlr::type::$typeVarName]} {
+        return ::dlr::type::$typeVarName
+    }
+    if {$notFoundAction eq {error}} {
+        error "Unqualified type name could not be resolved: $typeVarName"
+    }
+    return {}
 }
 
 proc ::dlr::declareCallToNative {libAlias  returnTypeVarName  fnName  parmsDescrip} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
     
-    set rTyp [qualifyTypeName $returnTypeVarName]
+    set rTyp [qualifyTypeName $returnTypeVarName $libAlias]
     set ${fQal}returnType  $rTyp
     
     set order [list]
@@ -163,7 +183,7 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeVarName  fnName  parmsDescr
         set pQal ${fQal}parm::${name}::
         lappend order $name
         lappend orderNative ${pQal}native
-        set type [qualifyTypeName $type]
+        set type [qualifyTypeName $type $libAlias]
         lappend types $type
         set ${pQal}dir  $dir
         set ${pQal}type  $type
