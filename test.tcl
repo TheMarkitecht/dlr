@@ -67,7 +67,10 @@ assert {[dict get $dic members a offset] == 0} ;# all the other offsets depend o
 assert {[dict get $dic members c size] == $::dlr::size::int}
 
 # load the library binding that was generated just now.
+assert {[llength [::dlr::allLibAliases]] == 0}
 ::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
+assert {[llength [::dlr::allLibAliases]] == 1}
+assert {[lindex [::dlr::allLibAliases] 0] eq {testLib}}
 
 # strtolWrap test
 alias  strtol  ::dlr::lib::testLib::strtolWrap::call

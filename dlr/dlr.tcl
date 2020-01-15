@@ -39,7 +39,6 @@ proc ::dlr::initDlr {} {
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
-    set ::dlr::libs                 [dict create]
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
 
@@ -129,15 +128,18 @@ proc ::dlr::initDlr {} {
 
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
-    #todo: eliminate libs array
-    set ::dlr::libs($libAlias) $handle
+    set ::dlr::libHandle::$libAlias $handle
     source [file join $::dlr::bindingDir $libAlias auto   $libAlias.tcl]
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
 }
 
+proc ::dlr::allLibAliases {} {
+    return [lmap ns [info vars ::dlr::libHandle::*] {namespace tail $ns}]
+}
+
 proc ::dlr::fnAddr {fnName libAlias} {
-    return [native::fnAddr $fnName $::dlr::libs($libAlias)]
+    return [native::fnAddr $fnName [set ::dlr::libHandle::$libAlias]]
 }
 
 proc ::dlr::isStructType {typeVarName} {
