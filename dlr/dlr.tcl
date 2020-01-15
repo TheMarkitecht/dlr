@@ -195,7 +195,6 @@ proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions
     
     # generate C source code to extract metadata.
     foreach m $members {
-        #todo: extract the struct member's type??
         append membCode "
             printf(\"    {$m} {size %zu offset %zu }\\n\", 
                 sizeof( a.$m ), offsetof($typeName, $m) );            

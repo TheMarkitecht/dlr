@@ -54,13 +54,15 @@ puts bits::ptr=$::dlr::bits::ptr
 assert {[::dlr::unpack::int $myLocal] == 89}
 
 # test extracting type metadata from C.
+# normally this would be done only after changing the shared library's source code, 
+# not on each run of the script app.
 # normally this would be done by including a .h file, but in this test we include 
 # a .c file instead, and from a specific path.
 set inc "
     #include \"[file join $::appDir testLib-src testLib.c]\"
 "
 set dic [::dlr::detectStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
-puts "name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
+puts "detected: name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
 assert {[dict get $dic members a offset] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
 assert {[dict get $dic members c size] == $::dlr::size::int}
 
@@ -114,6 +116,7 @@ loop attempt 2 5 {
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
+    puts mulByValueT.d=$d
 }
 
 # allocHeap test
