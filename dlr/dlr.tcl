@@ -139,6 +139,48 @@ proc ::dlr::fnAddr {fnName libAlias} {
     return [native::fnAddr $fnName $::dlr::libs($libAlias)]
 }
 
+proc ::dlr::isStructType {typeVarName} {
+    return [string match *::struct::* $type]
+}
+
+# qualify any unqualified type name, to assume it's one of the simple types in ::dlr::type::.
+# or, a name already qualified is returned as-is.
+proc ::dlr::qualifyTypeName {typeVarName} {
+    return $( [string match *::* $typeVarName] ? $typeVarName : "::dlr::type::$typeVarName" )
+}
+
+proc ::dlr::declareCallToNative {libAlias  returnTypeVarName  fnName  parmsDescrip} {
+    set fQal ::dlr::lib::${libAlias}::${fnName}::
+    
+    set rTyp [qualifyTypeName $returnTypeVarName]
+    set ${fQal}returnType  $rTyp
+    
+    set order [list]
+    set orderNative [list]
+    set types [list] 
+    foreach parmDesc $parmsDescrip {
+        lassign $parmDesc  dir  passMethod  type  name  scriptForm
+        set pQal ${fQal}parm::${name}::
+        lappend order $name
+        lappend orderNative ${pQal}native
+        set type [qualifyTypeName $type]
+        lappend types $type
+        set ${pQal}dir  $dir
+        set ${pQal}type  $type
+        set ${pQal}passMethod  $passMethod
+        set ${pQal}scriptForm  $scriptForm
+    }
+    set ${fQal}parmOrder        $order
+    set ${fQal}parmOrderPacked  $orderNative
+
+    prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
+        ${fQal}result  $rTyp  $orderNative  $types  
+}
+
+proc ::dlr::generateCallProc {libAlias  fnName} {
+    #todo generateCallProc
+}
+
 proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
     set typ $structTypeName
     

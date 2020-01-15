@@ -83,6 +83,7 @@ loop attempt 0 3 {
     puts endP=[format $::dlr::ptrFmt $endP]
     puts len=$len
     assert {$len == [string length $myNum]}
+    assert {[::dlr::unpack::ptr $::dlr::null] == 0}
 }
 
 # speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
