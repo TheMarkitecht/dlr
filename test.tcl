@@ -50,8 +50,8 @@ puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
 
 # test local vars in pack api.
-::dlr::pack::int  myLocal  89
-assert {[::dlr::unpack::int $myLocal] == 89}
+::dlr::pack::int-byVal-asInt   myLocal  89
+assert {[::dlr::unpack::int-byVal-asInt  $myLocal] == 89}
 
 # test extracting type metadata from C.
 # normally this would be done only after changing the shared library's source code, 

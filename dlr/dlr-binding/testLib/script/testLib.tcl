@@ -1,22 +1,14 @@
 # this script sets up all metdata required to use the library "testLib".
 
 # strtolWrap
-#todo: upgrade with better passMethod's and scriptForm's.  binary, int, float, list (for structs), dict (for structs).
-::dlr::declareCallToNative  testLib  long  strtolWrap  {
-    {in     byVal   ptr         strP            {}}
-    {out    byPtr   ptr         endPP           {}}
-    {in     byVal   int         radix           {}}
+#todo: upgrade with better passMethod's and scriptForm's.  native, int, float, list (for structs), dict (for structs).
+::dlr::declareCallToNative  testLib  {long asInt}  strtolWrap  {
+    {in     byVal   ptr         strP            asInt}
+    {out    byPtr   ptr         endPP           asInt}
+    {in     byVal   int         radix           asInt}
 }
-
-proc ::dlr::lib::testLib::strtolWrap::call {str  &endPVar  radix} {
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP::native  [::dlr::addrOf str]
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP::native  [::dlr::addrOf endPVar]
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP::native [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP::native]
-    ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix::native $radix
-    set resultPacked [::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta]
-    set endPVar [::dlr::unpack::ptr  $::dlr::lib::testLib::strtolWrap::parm::endP::native]
-    return [::dlr::unpack::int $resultPacked]
-}
+::dlr::generateCallProc  testLib  strtolWrap  \
+    [file join $::dlr::bindingDir testLib auto strtolWrap.call.tcl]
 
 # mulByValue
 ::dlr::declareStructType  testLib  mulByValueT  {
@@ -25,9 +17,9 @@ proc ::dlr::lib::testLib::strtolWrap::call {str  &endPVar  radix} {
     {int c}
     {int d}
 }
-::dlr::declareCallToNative  testLib  mulByValueT  mulByValue  {
-    {in     byVal   mulByValueT     st              {}}
-    {in     byVal   int             factor          {}}
+::dlr::declareCallToNative  testLib  {mulByValueT asList}  mulByValue  {
+    {in     byVal   mulByValueT     st              asList}
+    {in     byVal   int             factor          asInt}
 }
 
 proc ::dlr::lib::testLib::mulByValue::call {st  factor} {
