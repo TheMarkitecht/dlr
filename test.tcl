@@ -82,11 +82,18 @@ loop attempt 0 3 {
     set resultUnpacked [strtol  $myNum  endP  10]
     puts $myNum=$resultUnpacked
     assert {$resultUnpacked == $myNum}
-    set len $($endP - [::dlr::addrOf myNum])
+    # can't do reliable pointer arithmetic to verify new value of endP, 
+    # due to copies being made during packing.
+    # instead just verify it's not zero, and it's within about 100 MB of strP, meaning
+    # it's somewhere on the same heap as strP.
     puts endP=[format $::dlr::ptrFmt $endP]
-    puts len=$len
-    assert {$len == [string length $myNum]}
-    assert {[::dlr::unpack::ptr $::dlr::null] == 0}
+    assert {$endP != 0}
+    set strPmasked $( [::dlr::addrOf myNum] & 0xfffffffff0000000 )
+    set endPmasked $(                 $endP & 0xfffffffff0000000 )
+    assert {$endPmasked == $strPmasked}
+
+    # verify "constant" dlr::null was not overwritten.  that could have happened in older versions of this test.
+    assert {[::dlr::unpack::ptr-byVal-asInt $::dlr::null] == 0}
 }
 
 # speed benchmark.  test conditions very comparable to bench-0.1.tcl.  

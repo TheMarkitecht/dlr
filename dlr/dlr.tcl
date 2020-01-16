@@ -107,11 +107,12 @@ proc ::dlr::initDlr {} {
         set ::dlr::scriptForms::[namespace tail $v]  [list asInt asNative]
     }
     # overwrite that with a few special cases such as floating point and struct.
-    set ::dlr::scriptForms::char        [list asString]
     set ::dlr::scriptForms::struct      [list asList asDict asNative]
     foreach typ {float double longdouble} {
         set ::dlr::scriptForms::$typ  [list asDouble asNative]
     }
+    #todo: asString implies some automatic encoding/decoding as needed.  this really could say "asNative" instead, for now, until encoding features are available.  but "asNative" implies you can't directly use it in scripts.  but in fact you can.
+    set ::dlr::scriptForms::char        [list asString]
 
     # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
     # types with length unspecified in C use converters for fixed-size types.
