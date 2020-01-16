@@ -78,7 +78,7 @@ loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
     puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
-    set endP $::dlr::null
+    set endP 0
     set resultUnpacked [strtol  $myNum  endP  10]
     puts $myNum=$resultUnpacked
     assert {$resultUnpacked == $myNum}
@@ -132,3 +132,4 @@ loop attempt 0 3 {
 }
 
 
+puts "*** ALL TESTS PASS ***"

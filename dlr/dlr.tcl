@@ -40,10 +40,10 @@ proc ::dlr::initDlr {} {
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
-    set ::dlr::simpleTypeNames      [dict keys $::dlr::sizeOfSimpleTypes]
+    set ::dlr::directions           [list in out inOut]
 
     # bit and byte lengths of simple types, for use in converters.
-    foreach typ $::dlr::simpleTypeNames {
+    foreach typ [dict keys $::dlr::sizeOfSimpleTypes] {
         set ::dlr::size::$typ       $::dlr::sizeOfSimpleTypes($typ)
         set ::dlr::bits::$typ       $(8 * [set ::dlr::size::$typ])
     }
@@ -89,26 +89,27 @@ proc ::dlr::initDlr {} {
     # passMethod's.  these are the different ways a native function might expect to receive its actual arguments.
     # these help determine which converter will be called, and how.
     set ::dlr::passMethods [list byVal byPtr]
-    # fetchers.  these extract the data necessary to pass into a packer, for a given passmethod.
-    set ::dlr::fetcher::byVal  set
-    set ::dlr::fetcher::byPtr  ::dlr::addrOf
     
-    # scriptForms.  these are the different ways a script app might want to represent a given type.
+    # scriptForms.  these are the different ways a script app might want to represent a given type
+    # for easy handling in script.  
     # these help determine which converter will be called, and how.
     # each scriptForm is prefixed with the word "as" to prevent confusion with native data types,
     # to increase their mnemonic value to the script developer, and to clarify the meaning of type descriptions.
     # here each type offers a list of scriptForms.  the first scriptForm in each list tends to 
     # be the most useful scriptForm for that data type.
-    # the scriptForm "asNative" means a binary blob, the same one the native function uses.
+    # the scriptForm "asNative" means a binary blob, having the same layout the native function uses.
     # those tend to be opaque to script, so not very useful there.  but they can be passed directly
     # to another native function, without any intermediate conversions, increasing speed.
+    #
+    # most simple types are integer scalars, so blanket all types with asInt.
     foreach v [info vars ::dlr::type::*] {
-        set ::dlr::scriptForms::$typ  [list asInt asNative]
+        set ::dlr::scriptForms::[namespace tail $v]  [list asInt asNative]
     }
+    # overwrite that with a few special cases such as floating point and struct.
+    set ::dlr::scriptForms::struct  [list asList asDict asNative]
     foreach typ {float double longdouble} {
         set ::dlr::scriptForms::$typ  [list asDouble asNative]
     }
-    set ::dlr::scriptForms::struct  [list asList asDict asNative]
 
     # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
     # types with length unspecified in C use converters for fixed-size types.
@@ -196,6 +197,15 @@ proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     return {}
 }
 
+proc ::dlr::validateScriptForm {type fullType scriptForm} {
+    if {[isStructType $fullType]} {
+        set type struct
+    }
+    if {$scriptForm ni [set ::dlr::scriptForms::$type]} {
+        error "Invalid scriptForm was given."
+    }        
+}
+
 proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescrip} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
     
@@ -210,17 +220,26 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
         lappend orderNative ${pQal}native
         set fullType [qualifyTypeName $type $libAlias]
         lappend types $fullType
+        if {$dir ni $::dlr::directions} {
+            error "Invalid direction of flow was given."
+        }
         set ${pQal}dir  $dir
         set ${pQal}type  $fullType
+        if {$passMethod ni $::dlr::passMethods} {
+            error "Invalid passMethod was given."
+        }
         set ${pQal}passMethod  $passMethod
+        validateScriptForm $type $fullType $scriptForm
         set ${pQal}scriptForm  $scriptForm
-        #todo: delete
-        #set defaultForm $( [isStructType $fullType] ? list : [set ::dlr::defaultForm::$type]
-        #set form $( $scriptForm eq {byVal} ? {} : $scriptForm )
         set packerBase  $( [isStructType $fullType]  ?  "${fullType}::pack"  :  "::dlr::pack::$type" )
-        set ${pQal}packer  ${packerBase}-${passMethod}-${scriptForm}
+        # this version uses only byVal converters, and wraps them in script for byPtr.
+        # in future, the converters might be allowed to implement byPtr also, for more speed etc.
+        set ${pQal}packer  ${packerBase}-byVal-${scriptForm}
         set unpackerBase  $( [isStructType $fullType]  ?  "${fullType}::unpack"  :  "::dlr::unpack::$type" )
-        set ${pQal}unpacker  ${unpackerBase}-${passMethod}-${scriptForm}
+        set ${pQal}unpacker  ${unpackerBase}-byVal-${scriptForm}
+        if {$passMethod eq {byPtr}} {
+            set ${pQal}targetNativeName  ${pQal}targetNative
+        }
     }
     set ${fQal}parmOrder        $order
     set ${fQal}parmOrderNative  $orderNative
@@ -234,25 +253,28 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
     lassign $returnTypeDescrip  type scriptForm
     set fullType [qualifyTypeName $type $libAlias]
     set ${rQal}type  $fullType
+    validateScriptForm $type $fullType $scriptForm
     set ${rQal}scriptForm  $scriptForm
     set unpackerBase  $( [isStructType $fullType]  ?  "${fullType}::unpack"  :  "::dlr::unpack::$type" )
     set ${rQal}unpacker  ${unpackerBase}-${passMethod}-${scriptForm}
     
-    # prepare dlrNative and FFI data structures.
+    # prepare a metaBlob to hold dlrNative and FFI data structures.  
+    # do this last, to prevent an ill-advised callToNative using half-baked metadata
+    # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
     prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
         ${rQal}native  [set ${rQal}type]  $orderNative  $types  
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
 #
-# it is not immediately applied to the live interpreter.  instead the "proc" command is
+# when called, the wrapper will pack all the native function's "in" parameter values,
+# call the native function, and unpack its return value, and any "out" parameters it has.
+#
+# the proc is not immediately created in the live interpreter.  instead the "proc" command is
 # returned, and can be applied to the interp with "eval" or similar.  however, Jim can't
 # report error line numbers in that case, because there is no source file.
 # the "proc" command is also written to the given fileNamePath.  "source" that to allow
 # Jim to report error line numbers when the proc is used.
-#
-# when called, the wrapper will pack all the native function's "in" parameter values,
-# call the native function, and unpack its return value, and any "out" parameters it has.
 #
 # the wrapper proc comes with a fully qualified command name:
 #   ::dlr::lib::${libAlias}::${fnName}::call
@@ -260,16 +282,21 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
 # after that, a call to the wrapper looks just like any ordinary script command,
 # but quietly uses the native function.
 #
-# metadata kept under ::dlr::lib::${libAlias}::${fnName} can be modified if needed, before
-# calling generateCallProc.
+# the generated code uses fully qualified variable names throughout, for speed.
+# they are never computed on the fly e.g. using fQal.
 #
-# if needed, the script app can also supply its own call wrapper proc, or none at all, 
+# before calling generateCallProc, the app can modify metadata kept under 
+# ::dlr::lib::${libAlias}::${fnName}, to tailor the generated code for the app's needs.
+#
+# if needed, the script app can also supply its own call wrapper proc, or use none at all, 
 # instead of using generateCallProc.  look to the generated wrapper procs for examples.
+# sometimes more speed can be found with handwritten code.
 proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
-    # pack "in" parms.
+    # call packers to pack "in" parms.
     set procArgs [list]
+    set procFormalParms [list]
     set body {}
     foreach  parmBare [set ${fQal}parmOrder]  parmNative [set ${fQal}parmOrderNative] {
         # parmBare is the simple name of the parameter, such as "radix".
@@ -283,42 +310,31 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
         foreach v [info vars ${pQal}* ] {upvar  #0  $v  [namespace tail $v]}
         
         lappend procArgs $parmBare
+        # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
+        lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
         
-        #todo delete
-        set junk {
-            set packScript {}
-            if {$dir in {in inOut}} {
-                # pack a parm to pass in to the native func.
-                if {$passMethod eq {byVal}} {
-                    if {[isStructType $type]} {
-                        #todo: call struct packer
-                    } else {
-                        set packScript "::dlr::pack::"
-                    }
-                }
-            }
-            if {$packScript eq {}} {
-                error "Parameter configuration is not supported, while packing: $pQal"
-            }
-            append body $packScript
-        }
-
         # pack a parm to pass in to the native func.  this must be done, even for "out" parms,
         # to ensure buffer space is available before the call.  that makes sense because
         # ordinary C code always does that.
-        set fetcher [set ::dlr::fetcher::$passMethod]
-        append body "$packer  $parmNative  \[ $fetcher  $parmBare \] \n"
+        if {$passMethod eq {byPtr}} {
+            # pass by pointer requires 2 packed native vars:  one for the target type's data,
+            # and another for the pointer to it.  both must be packed to native before the call.
+            append body "$packer  $targetNativeName  \$$parmBare \n"
+            append body "::dlr::pack::ptr-byVal-asInt  $parmNative  \[ ::dlr::addrOf  $targetNativeName \] \n"
+        } else {
+            append body "$packer  $parmNative  \$$parmBare \n"
+        }
     }
     
     # call native function.
     set rQal ${fQal}return::
     append body "set  ${rQal}native  \[ ::dlr::callToNative  ${fQal}meta \] \n"
     
-    # unpack "out" parms.
+    # call unpackers to unpack "out" parms.
     foreach  \
         parmBare  [set ${fQal}parmOrder]  \
         parmNative  [set ${fQal}parmOrderNative]  \
-        procArg  procArgs  {
+        procArg  $procArgs  {
             
         # set up local names to access all the metadata for this parm.
         set pQal ${fQal}parm::${parmBare}::
@@ -326,7 +342,12 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
         
         # unpack a parm passed back from the native func.
         if {$dir in {out inOut}} {
-            append body "set  $procArg  \[ $unpacker  \$$parmNative \] \n"
+#debugscript begin            
+            if {$passMethod eq {byPtr}} {
+                append body "set  $procArg  \[ $unpacker  \$$targetNativeName \] \n"
+            } else {
+                append body "set  $procArg  \[ $unpacker  \$$parmNative \] \n"
+            }
         }
     }
     
@@ -334,7 +355,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
     append body "return  \[ [set ${rQal}unpacker] \$${rQal}native \] \n"
 
     # compose "proc" command.
-    set procCmd "proc  ${fQal}call  { $procArgs }  { \n $body \n }"
+    set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n $body \n }"
     
     # save the generated code to a file.
     set f [open $fileNamePath w]

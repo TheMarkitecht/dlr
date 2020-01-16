@@ -4,7 +4,7 @@
 #todo: upgrade with better passMethod's and scriptForm's.  native, int, float, list (for structs), dict (for structs).
 ::dlr::declareCallToNative  testLib  {long asInt}  strtolWrap  {
     {in     byVal   ptr         strP            asInt}
-    {out    byPtr   ptr         endPP           asInt}
+    {out    byPtr   ptr         endP            asInt}
     {in     byVal   int         radix           asInt}
 }
 set path [file join $::dlr::bindingDir testLib auto strtolWrap.call.tcl]
