@@ -77,6 +77,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::type::uLong          [set ::dlr::ffiType::uInt$::dlr::bits::long      ]
     set ::dlr::type::uLongLong      [set ::dlr::ffiType::uInt$::dlr::bits::longLong  ]
     set ::dlr::type::sizeT          [set ::dlr::ffiType::uInt$::dlr::bits::sizeT     ]
+    set ::dlr::type::char           {}
     foreach v [info vars ::dlr::ffiType::*] {
         set  ::dlr::type::[namespace tail $v]  [set $v]
     }
@@ -106,7 +107,8 @@ proc ::dlr::initDlr {} {
         set ::dlr::scriptForms::[namespace tail $v]  [list asInt asNative]
     }
     # overwrite that with a few special cases such as floating point and struct.
-    set ::dlr::scriptForms::struct  [list asList asDict asNative]
+    set ::dlr::scriptForms::char        [list asString]
+    set ::dlr::scriptForms::struct      [list asList asDict asNative]
     foreach typ {float double longdouble} {
         set ::dlr::scriptForms::$typ  [list asDouble asNative]
     }
@@ -132,19 +134,26 @@ proc ::dlr::initDlr {} {
         alias  ::dlr::${conversion}::ptr-byVal-asInt        ::dlr::${conversion}::u${::dlr::bits::ptr}-byVal-asInt
     }
 
-    # aliases for converters written in C and provided by dlr by default.
-    # these work the same for both signed and unsigned.
-    foreach size {8 16 32 64} {
-        foreach sign {u i} {
-            alias  ::dlr::pack::${sign}${size}-byVal-asInt      ::dlr::native::pack${size}-byVal-asInt
-            alias  ::dlr::unpack::${sign}${size}-byVal-asInt    ::dlr::native::unpack${size}-byVal-asInt
+    # aliases for converters written in C and provided by dlrNative by default.
+    foreach conversion {pack unpack} {
+        foreach size {8 16 32 64} {
+            # these work the same for both signed and unsigned due to machines using 2's complement representation.
+            #todo: verify with negative numbers.
+            foreach sign {u i} {
+                alias  ::dlr::${conversion}::${sign}${size}-byVal-asInt  ::dlr::native::${conversion}-${size}-byVal-asInt
+            }
         }
+        alias  ::dlr::${conversion}::char-byVal-asString      ::dlr::native::${conversion}-char-byVal-asString
     }
 
     # pointer support
     set ::dlr::ptrFmt               0x%0$($::dlr::bits::ptr / 4)X
-    # scripts should use $::dlr::null instead of packing their own nulls.
+    # scripts can use $::dlr::null instead of packing their own nulls.
+    # this is typically not needed, but might be useful to speed up handwritten converters.
     ::dlr::pack::ptr-byVal-asInt  ::dlr::null  0 
+    # any asString data might contain this flag string, to represent a null pointer in the native data.
+    #todo: test that, for passing a null char* in and out of native func.
+    set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
 
     # compiler support
     set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]    
@@ -216,27 +225,34 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
     foreach parmDesc $parmsDescrip {
         lassign $parmDesc  dir  passMethod  type  name  scriptForm
         set pQal ${fQal}parm::${name}::
+        
         lappend order $name
         lappend orderNative ${pQal}native
-        set fullType [qualifyTypeName $type $libAlias]
-        lappend types $fullType
+                
         if {$dir ni $::dlr::directions} {
             error "Invalid direction of flow was given."
         }
         set ${pQal}dir  $dir
-        set ${pQal}type  $fullType
+        
         if {$passMethod ni $::dlr::passMethods} {
             error "Invalid passMethod was given."
         }
         set ${pQal}passMethod  $passMethod
+        
+        set fullType [qualifyTypeName $type $libAlias]
+        set ${pQal}type  $fullType
+        lappend types $( $passMethod eq {byPtr} ? {::dlr::type::ptr} : $fullType )
+
         validateScriptForm $type $fullType $scriptForm
         set ${pQal}scriptForm  $scriptForm
-        set packerBase  $( [isStructType $fullType]  ?  "${fullType}::pack"  :  "::dlr::pack::$type" )
+
         # this version uses only byVal converters, and wraps them in script for byPtr.
         # in future, the converters might be allowed to implement byPtr also, for more speed etc.
+        set packerBase  $( [isStructType $fullType]  ?  "${fullType}::pack"  :  "::dlr::pack::$type" )
         set ${pQal}packer  ${packerBase}-byVal-${scriptForm}
         set unpackerBase  $( [isStructType $fullType]  ?  "${fullType}::unpack"  :  "::dlr::unpack::$type" )
         set ${pQal}unpacker  ${unpackerBase}-byVal-${scriptForm}
+
         if {$passMethod eq {byPtr}} {
             set ${pQal}targetNativeName  ${pQal}targetNative
         }
@@ -312,6 +328,8 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
         lappend procArgs $parmBare
         # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
         lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
+        
+        #todo: support asNative by wrapping the following block in "if asNative" and emit a plain "set"
         
         # pack a parm to pass in to the native func.  this must be done, even for "out" parms,
         # to ensure buffer space is available before the call.  that makes sense because

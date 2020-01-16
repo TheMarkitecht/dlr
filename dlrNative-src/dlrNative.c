@@ -540,32 +540,26 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-int packerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
-    int sizeBytes, jim_wide* dataP, u8** bufP) {
-        
-    enum { 
-        cmdIX = 0,
-        packVarNameIX,
-        unpackedDataIX,
-        offsetBytesIX,
-        nextOffsetVarNameIX,
-        argCount
-    };
-    
-    if (objc > argCount || objc < offsetBytesIX) {
+enum { 
+    pk_cmdIX = 0,
+    pk_packVarNameIX,
+    pk_unpackedDataIX,
+    pk_offsetBytesIX,
+    pk_nextOffsetVarNameIX,
+    pk_argCount
+} pk_args;
+
+int packerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
+    int sizeBytes, void** bufP) {
+            
+    if (objc > pk_argCount || objc < pk_offsetBytesIX) {
         Jim_SetResultString(itp, "Wrong # args.", -1);
         return JIM_ERR;
     }
     
-    *dataP = 0;
-    if (Jim_GetWide(itp, objv[unpackedDataIX], dataP) != JIM_OK) {
-        Jim_SetResultString(itp, "Expected data value integer but got other data.", -1);
-        return JIM_ERR;
-    }
-    
     jim_wide offset = 0;
-    if (objc > offsetBytesIX) {
-        if (Jim_GetWide(itp, objv[offsetBytesIX], &offset) != JIM_OK) {
+    if (objc > pk_offsetBytesIX) {
+        if (Jim_GetWide(itp, objv[pk_offsetBytesIX], &offset) != JIM_OK) {
             Jim_SetResultString(itp, "Expected offset integer but got other data.", -1);
             return JIM_ERR;
         }
@@ -576,20 +570,20 @@ int packerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     }
     int requiredLen = offset + sizeBytes;
     
-    Jim_Obj* v = Jim_GetVariable(itp, objv[packVarNameIX], JIM_NONE);
+    Jim_Obj* v = Jim_GetVariable(itp, objv[pk_packVarNameIX], JIM_NONE);
     if (v == NULL) {
-        if (createBufferVarNative(itp, objv[packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
+        if (createBufferVarNative(itp, objv[pk_packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
     } else {
         if (v->length < requiredLen) {
             Jim_SetResultString(itp, "Inadequate buffer in variable.", -1);
             return JIM_ERR;
         }    
     }
-    *bufP = (u8*)v->bytes + offset;
+    *bufP = (void*)((u8*)v->bytes + offset);
     
-    if (objc > nextOffsetVarNameIX) {
+    if (objc > pk_nextOffsetVarNameIX) {
         // memorize the offset for the next operation after this one.
-        if (Jim_SetVariable(itp, objv[nextOffsetVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) {
+        if (Jim_SetVariable(itp, objv[pk_nextOffsetVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) {
             Jim_SetResultString(itp, "Failed to memorize next offset.", -1);
             return JIM_ERR;
         }
@@ -598,40 +592,68 @@ int packerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     return JIM_OK;
 }
 
-int pack8_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    jim_wide data; 
+int packerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[], jim_wide* dataP) {
+    *dataP = 0;
+    if (Jim_GetWide(itp, objv[pk_unpackedDataIX], dataP) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected data value integer but got other data.", -1);
+        return JIM_ERR;
+    }    
+    return JIM_OK;
+}
+
+int pack_8_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u8* buf = NULL;
-    if (packerSetup_byVal_asInt(itp, objc, objv, sizeof(u8), &data, &buf) != JIM_OK) return JIM_ERR;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(u8), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
     *(u8*)buf = (u8)data;
     return JIM_OK;
 }
 
-int pack16_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    jim_wide data; 
+int pack_16_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u16* buf = NULL;
-    if (packerSetup_byVal_asInt(itp, objc, objv, sizeof(u16), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(u16), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
     *(u16*)buf = (u16)data;
     return JIM_OK;
 }
 
-int pack32_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    jim_wide data; 
+int pack_32_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u32* buf = NULL;
-    if (packerSetup_byVal_asInt(itp, objc, objv, sizeof(u32), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(u32), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
     *(u32*)buf = (u32)data;
     return JIM_OK;
 }
 
-int pack64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    jim_wide data; 
+int pack_64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u64* buf = NULL;
-    if (packerSetup_byVal_asInt(itp, objc, objv, sizeof(u64), &data, (u8**)&buf) != JIM_OK) return JIM_ERR;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(u64), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
     *(u64*)buf = (u64)data;
     return JIM_OK;
 }
 
-int unpackerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
-    int sizeBytes, u8** bufP) {
+int pack_char_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    if (objc > pk_argCount || objc < pk_offsetBytesIX) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }    
+    int len = 0;
+    const char* src = Jim_GetString(objv[pk_unpackedDataIX], &len);
+    len++; //todo: is this needed?  see if it includes the term null prior to increment.
+    char* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, len, (void**)&buf) != JIM_OK) return JIM_ERR;
+    memcpy(buf, src, len);
+    buf[len] = 0; // guarantee safety for future string operations.  this should already be a null.
+    return JIM_OK;
+}
+
+int unpackerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
+    int sizeBytes, void** bufP) {
         
     enum { 
         cmdIX = 0,
@@ -673,38 +695,45 @@ int unpackerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
         }
     }
 
-    *bufP = (u8*)v->bytes + offset;    
+    *bufP = (void*)((u8*)v->bytes + offset);
     return JIM_OK;
 }
 
-int unpack8_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int unpack_8_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u8* buf = NULL;
-    if (unpackerSetup_byVal_asInt(itp, objc, objv, sizeof(u8), (u8**)&buf) != JIM_OK) return JIM_ERR;
-    Jim_SetResultInt(itp, (jim_wide) *(u8*)buf);
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(u8), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
     return JIM_OK;
 }
 
-int unpack16_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int unpack_16_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u16* buf = NULL;
-    if (unpackerSetup_byVal_asInt(itp, objc, objv, sizeof(u16), (u8**)&buf) != JIM_OK) return JIM_ERR;
-    Jim_SetResultInt(itp, (jim_wide) *(u16*)buf);
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(u16), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
     return JIM_OK;
 }
 
-int unpack32_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int unpack_32_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u32* buf = NULL;
-    if (unpackerSetup_byVal_asInt(itp, objc, objv, sizeof(u32), (u8**)&buf) != JIM_OK) return JIM_ERR;
-    Jim_SetResultInt(itp, (jim_wide) *(u32*)buf);
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(u32), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
     return JIM_OK;
 }
 
-int unpack64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int unpack_64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u64* buf = NULL;
-    if (unpackerSetup_byVal_asInt(itp, objc, objv, sizeof(u64), (u8**)&buf) != JIM_OK) return JIM_ERR;
-    Jim_SetResultInt(itp, (jim_wide) *(u64*)buf);
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(u64), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
     return JIM_OK;
 }
 
+int unpack_char_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    char* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, 0, (void**)&buf) != JIM_OK) return JIM_ERR;
+    //todo: limit to a certain max length here for safety.  have the package script fetch that from metadata and pass it to here.
+    Jim_SetResultString(itp, (char*) buf, -1);
+    return JIM_OK;
+}
 
 int Jim_dlrNativeInit(Jim_Interp* itp) {
     //ivkClientT* client = client_alloc(itp);
@@ -727,15 +756,17 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
     
-    Jim_CreateCommand(itp, "dlr::native::pack8-byVal-asInt",  pack8_byVal_asInt,  NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::pack16-byVal-asInt", pack16_byVal_asInt, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::pack32-byVal-asInt", pack32_byVal_asInt, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::pack64-byVal-asInt", pack64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-8-byVal-asInt",  pack_8_byVal_asInt,  NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-16-byVal-asInt", pack_16_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-32-byVal-asInt", pack_32_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-64-byVal-asInt", pack_64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-char-byVal-asString", pack_char_byVal_asString, NULL, NULL);
 
-    Jim_CreateCommand(itp, "dlr::native::unpack8-byVal-asInt",  unpack8_byVal_asInt,  NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::unpack16-byVal-asInt", unpack16_byVal_asInt, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::unpack32-byVal-asInt", unpack32_byVal_asInt, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::unpack64-byVal-asInt", unpack64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-8-byVal-asInt",  unpack_8_byVal_asInt,  NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-16-byVal-asInt", unpack_16_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-32-byVal-asInt", unpack_32_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-64-byVal-asInt", unpack_64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-char-byVal-asString", unpack_char_byVal_asString, NULL, NULL);
 
     return JIM_OK;
 }

@@ -3,7 +3,7 @@
 # strtolWrap
 #todo: upgrade with better passMethod's and scriptForm's.  native, int, float, list (for structs), dict (for structs).
 ::dlr::declareCallToNative  testLib  {long asInt}  strtolWrap  {
-    {in     byVal   ptr         strP            asInt}
+    {in     byPtr   char        str             asString}
     {out    byPtr   ptr         endP            asInt}
     {in     byVal   int         radix           asInt}
 }
