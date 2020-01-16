@@ -244,17 +244,25 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
-# when called, the wrapper will pack all the native function's parameter values,
+#
+# it is not immediately applied to the live interpreter.  instead the "proc" command is
+# returned, and can be applied to the interp with "eval" or similar.  however, Jim can't
+# report error line numbers in that case, because there is no source file.
+# the "proc" command is also written to the given fileNamePath.  "source" that to allow
+# Jim to report error line numbers when the proc is used.
+#
+# when called, the wrapper will pack all the native function's "in" parameter values,
 # call the native function, and unpack its return value, and any "out" parameters it has.
+#
 # the wrapper proc comes with a fully qualified command name:
 #   ::dlr::lib::${libAlias}::${fnName}::call
 # if needed, the script app can alias a more convenient local name to that.
 # after that, a call to the wrapper looks just like any ordinary script command,
 # but quietly uses the native function.
-# if fileNamePath is a nonempty string, the proc source code will be saved there instead of
-# applied to the live interpreter.
+#
 # metadata kept under ::dlr::lib::${libAlias}::${fnName} can be modified if needed, before
 # calling generateCallProc.
+#
 # if needed, the script app can also supply its own call wrapper proc, or none at all, 
 # instead of using generateCallProc.  look to the generated wrapper procs for examples.
 proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
@@ -295,11 +303,11 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
             append body $packScript
         }
 
-        # pack a parm to pass in to the native func.
-        if {$dir in {in inOut}} {
-            set fetcher [set ::dlr::fetcher::$passMethod]
-            append body "$packer  $parmNative  \[ $fetcher  $parmBare \] \n"
-        }
+        # pack a parm to pass in to the native func.  this must be done, even for "out" parms,
+        # to ensure buffer space is available before the call.  that makes sense because
+        # ordinary C code always does that.
+        set fetcher [set ::dlr::fetcher::$passMethod]
+        append body "$packer  $parmNative  \[ $fetcher  $parmBare \] \n"
     }
     
     # call native function.
@@ -324,15 +332,16 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
     
     # unpack return value.
     append body "return  \[ [set ${rQal}unpacker] \$${rQal}native \] \n"
+
+    # compose "proc" command.
+    set procCmd "proc  ${fQal}call  { $procArgs }  { \n $body \n }"
     
-    # apply the generated code to the interp, or a file.
-    if {$fileNamePath eq {}} {
-        proc  ${fQal}call  $procArgs  $body
-    } else {
-        set f [open $fileNamePath w]
-        puts $f "proc  ${fQal}call  { $procArgs }  { \n $body \n }"
-        close $f
-    }
+    # save the generated code to a file.
+    set f [open $fileNamePath w]
+    puts $f $procCmd
+    close $f
+    
+    return $procCmd
 }
 
 proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
@@ -349,6 +358,7 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
 
     # unpack metadata from the given declaration and merge it with the cached detected info.
     #todo: support nested structs.
+    #todo: support scriptForm for each struct member.
     set ::dlr::lib::${libAlias}::struct::${typ}::size $sDic(size)
     set membersRemain [dict keys $sDic(members)]
     set ::dlr::lib::${libAlias}::struct::${typ}::memberOrder $membersRemain

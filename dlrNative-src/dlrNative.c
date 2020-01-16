@@ -536,6 +536,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     Jim_SetResult(itp, resultObj);
     
     //todo: optionally check for errors, in the ways offered by the most common libs.    
+    //todo: optionally call a custom error checking function.
     return JIM_OK;
 }
 

@@ -7,8 +7,9 @@
     {out    byPtr   ptr         endPP           asInt}
     {in     byVal   int         radix           asInt}
 }
-::dlr::generateCallProc  testLib  strtolWrap  \
-    [file join $::dlr::bindingDir testLib auto strtolWrap.call.tcl]
+set path [file join $::dlr::bindingDir testLib auto strtolWrap.call.tcl]
+::dlr::generateCallProc  testLib  strtolWrap  $path
+source $path
 
 # mulByValue
 ::dlr::declareStructType  testLib  mulByValueT  {

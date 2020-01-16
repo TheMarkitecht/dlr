@@ -28,14 +28,14 @@ r
 #b unpackerSetup
 #c
 
-#b prepMetaBlob
-#b callToNative
+b prepMetaBlob
+b callToNative
 #b strtolWrap
 #p *meta->cif.arg_types 
 # during break at 191:  watch -l meta->cif.arg_types[0]
 #display *((metaBlobT*)0x5555555dbab0)->cif.arg_types
 #b Jim_FreeObj if objPtr == 0x5555555dbb00
-b dlrNative.c:568
+#b dlrNative.c:568
 #p script->linenr
 #b Jim_GenHashFunction
 #commands 
