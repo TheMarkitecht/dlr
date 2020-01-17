@@ -257,7 +257,12 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
     return ::dlr::${conversion}::[namespace tail $fullType]-${passMethod}-$scriptForm
 }
 
-proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+# at each declaration, if scriptAction is applyScript, dlr source's the generated 
+# support scripts into the live interpreter.
+# per the app's needs, it could instead define its own support procs (noScript).
+# or it could source the generated ones, and then modify or further wrap certain ones.
+#todo: more documentation
+proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
     
     # memorize metadata for parms.
@@ -315,6 +320,14 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
     
     if [refreshMeta] {
         generateCallProc  $libAlias  $fnName
+    }
+    
+    #todo: enhance all error messages throughout the project.
+    if {$scriptAction ni {applyScript noScript}} {
+        error "Invalid script action: $scriptAction"
+    }
+    if {$scriptAction eq {applyScript}} {
+        source [callWrapperPath  $libAlias  $fnName]
     }
     
     # prepare a metaBlob to hold dlrNative and FFI data structures.  
@@ -429,7 +442,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
 
 # this is the required first step before using a struct type.
 #todo: documentation
-proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
+proc ::dlr::declareStructType {scriptAction  libAlias  structTypeName  membersDescrip} {
     configureStructType  $libAlias  $structTypeName  $membersDescrip
     if [refreshMeta] {
         detectStructLayout  $libAlias  $structTypeName
@@ -437,6 +450,12 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
     validateStructType  $libAlias  $structTypeName
     if [refreshMeta] {
         generateStructConverters  $libAlias  $structTypeName
+    }
+    if {$scriptAction ni {applyScript noScript}} {
+        error "Invalid script action: $scriptAction"
+    }
+    if {$scriptAction eq {applyScript}} {
+        source [structConverterPath  $libAlias  $structTypeName]
     }
 }
 
