@@ -39,8 +39,10 @@ proc ::dlr::initDlr {} {
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
+    #todo: document in readme etc. how generated code is placed in auto/ and handwritten code in script/
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::directions           [list in out inOut]
+    ::dlr::refreshMeta              0
 
     # bit and byte lengths of simple types, for use in converters.
     foreach typ [dict keys $::dlr::sizeOfSimpleTypes] {
@@ -165,6 +167,7 @@ proc ::dlr::initDlr {} {
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
+    #todo: remove this first one
     source [file join $::dlr::bindingDir $libAlias auto   $libAlias.tcl]
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
@@ -172,6 +175,13 @@ proc ::dlr::loadLib {libAlias fileNamePath} {
 
 proc ::dlr::allLibAliases {} {
     return [lmap ns [info vars ::dlr::libHandle::*] {namespace tail $ns}]
+}
+
+# getter/setter for the refreshMeta boolean flag.
+# this determines whether metadata and wrapper scripts will be regenerated (and cached again)
+# on this particular startup of the script app.
+proc ::dlr::refreshMeta {args} {
+    return [set ::dlr::refreshMetaFlag {*}$args]
 }
 
 proc ::dlr::fnAddr {fnName libAlias} {
@@ -290,8 +300,10 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
 # the proc is not immediately created in the live interpreter.  instead the "proc" command is
 # returned, and can be applied to the interp with "eval" or similar.  however, Jim can't
 # report error line numbers in that case, because there is no source file.
-# the "proc" command is also written to the given fileNamePath.  "source" that to allow
-# Jim to report error line numbers when the proc is used.
+# the "proc" command is also written to a file at [callWrapperPath].  "source" that instead
+# of using "eval", to allow Jim to report error line numbers when the proc is used.
+# that also avoids time spent regenerating the proc body each time the app starts,
+# and allows the developer to modify the proc too.
 #
 # the wrapper proc comes with a fully qualified command name:
 #   ::dlr::lib::${libAlias}::${fnName}::call
@@ -308,7 +320,7 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
 # if needed, the script app can also supply its own call wrapper proc, or use none at all, 
 # instead of using generateCallProc.  look to the generated wrapper procs for examples.
 # sometimes more speed can be found with handwritten code.
-proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
+proc ::dlr::generateCallProc {libAlias  fnName} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
     # call packers to pack "in" parms.
@@ -374,10 +386,10 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
     append body "return  \[ [set ${rQal}unpacker] \$${rQal}native \] \n"
 
     # compose "proc" command.
-    set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n $body \n }"
+    set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"
     
     # save the generated code to a file.
-    set f [open $fileNamePath w]
+    set f [open [callWrapperPath $libAlias $fnName] w]
     puts $f $procCmd
     close $f
     
@@ -385,10 +397,10 @@ proc ::dlr::generateCallProc {libAlias  fnName  fileNamePath} {
 }
 
 proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
-    set typ $structTypeName
+    set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     
     # load up the type information previously detected and cached on disk.
-    set layoutFn [file join $::dlr::bindingDir $libAlias auto $typ.struct]
+    set layoutFn [file join $::dlr::bindingDir $libAlias auto $structTypeName.struct]
     if { ! [file readable $layoutFn]} {
         error "Structure layout metadata was not detected for library '$libAlias' type '$typeName'."
     }
@@ -398,52 +410,114 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
 
     # unpack metadata from the given declaration and merge it with the cached detected info.
     #todo: support nested structs.
-    #todo: support scriptForm for each struct member.
-    set ::dlr::lib::${libAlias}::struct::${typ}::size $sDic(size)
+    #todo: factor out all the validation vs. detected info, and move that to another command like "validateStructType"
+    set ${sQal}size $sDic(size)
     set membersRemain [dict keys $sDic(members)]
-    set ::dlr::lib::${libAlias}::struct::${typ}::memberOrder $membersRemain
+    set ${sQal}memberOrder $membersRemain
     set typeVars [list]
     foreach {mDescrip} $membersDescrip {
-        lassign $mDescrip mTypeName mName
+        lassign $mDescrip mType mName mScriptForm
+        set mQal ${sQal}member::${mName}::
+        
         set ix [lsearch $membersRemain $mName]
         if {$ix < 0} {
             error "Library '$libAlias' struct '$typ' member '$mName' is not found in the detected metadata."
         }
-        set membersRemain [lreplace $membersRemain $ix $ix]        
-        if {"::dlr::type::$mTypeName" ni [info vars ::dlr::type::*]} {
+        set membersRemain [lreplace $membersRemain $ix $ix]    
+            
+        if {"::dlr::type::$mType" ni [info vars ::dlr::type::*]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
         }
-        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::typeName $mTypeName
-        set typeVar ::dlr::type::$mTypeName
-        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::typeCode [set $typeVar]
-        lappend typeVars $typeVar
+        set ${mQal}typeName $mType
+        set mFullType ::dlr::type::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
+        set ${mQal}typeCode [set $mFullType]
+        lappend typeVars $mFullType
+        
         set mDic [dict get $sDic members $mName]
-        if {$mDic(size) != [set ::dlr::size::$mTypeName]} {
+        set ${mQal}offset $mDic(offset)
+        
+        if {$mDic(size) != [set ::dlr::size::$mType]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
         }
-        set ::dlr::lib::${libAlias}::struct::${typ}::member::${mName}::offset $mDic(offset)
+        
+        validateScriptForm $mType $mFullType $mScriptForm        
+        set ${mQal}scriptForm $mScriptForm
+        
+        set packerBase  ::dlr::pack::$mType
+        set ${mQal}packer  ${packerBase}-byVal-${mScriptForm}
+        set unpackerBase  ::dlr::unpack::$mType
+        set ${mQal}unpacker  ${unpackerBase}-byVal-${mScriptForm}
     }
     if {[llength $membersRemain] > 0} {
         error "Library '$libAlias' struct '$typ' member '[lindex $membersRemain 0]' is mentioned in the detected metadata but not in the given declaration."
     }
     
-    # prep FFI type record for this structure.
-    ::dlr::prepStructType  ::dlr::lib::${libAlias}::struct::${typ}::meta  $typeVars   
+    # prep FFI type record for this structure.  do this last of all.
+    ::dlr::prepStructType  ${sQal}meta  $typeVars   
+}
+
+#todo: documentation similar to generateCallProc
+proc ::dlr::generateStructConverters {libAlias  structTypeName} {
+    set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
+    set procs [list]
+    set packerParms {packVarName unpackedData {offsetBytes 0} {nextOffsetVarName {}}}
+    set unpackerParms {packedValue offsetBytes {nextOffsetVarName {}}}
+    set memberTemps [lmap m [set ${sQal}memberOrder] {expr {"mv::$m"}}]
+
+    #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
+    
+    # generate pack-byVal-asList
+    set body "lassign \$unpackedData  [join $memberTemps {  }] \n"
+    append body "::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    foreach  mName [set ${sQal}memberOrder]  mTemp $memberTemps  {
+        set mQal ${sQal}member::${mName}::
+        append body "[set ${mQal}packer]  \$packVarName  \$$mTemp  \$${mQal}offset \n"
+        # that could run faster (maybe?) if it placed the offset integer into the script
+        # instead of fetching it from metadata at run time.  then again, it might not.
+        # it would definitely be harder to read and maintain with the magic numbers, 
+        # and more likely to fail after the struct is recompiled.
+    }
+    # compose "proc" command.
+    lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n }"
+    
+    #todo:  generate pack-byVal-asDict
+    
+    # generate unpack-byVal-asList
+    set body {}
+    append body {return  [list  \ }  \n
+    foreach  mName [set ${sQal}memberOrder]  mTemp $memberTemps  {
+        set mQal ${sQal}member::${mName}::
+        append body " \[ [set ${mQal}unpacker]  \$packedValue  \$${mQal}offset \]  \\ \n"
+    }
+    append body {]}  \n
+    # compose "proc" command.
+    lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n }"
+
+    #todo:  generate unpack-byVal-asDict
+
+    # save the generated code to a file.
+    set script [join $procs \n\n]
+    set f [open [structConverterPath $libAlias $structTypeName] w]
+    puts $f $script
+    close $f
+    
+    return $script
 }
 
 # works with either gcc or clang.
 # struct layout metadata is returned, and also cached in the binding dir.
-proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions  members} {
+proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions  membersDescrip} {
     # determine paths.
     set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
     set binFn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
     
     # generate C source code to extract metadata.
-    foreach m $members {
+    foreach mDescrip $membersDescrip {
+        lassign $mDescrip  mType  mName  mScriptForm
         append membCode "
-            printf(\"    {$m} {size %zu offset %zu }\\n\", 
-                sizeof( a.$m ), offsetof($typeName, $m) );            
+            printf(\"    {$mName} {size %zu offset %zu }\\n\", 
+                sizeof( a.$mName ), offsetof($typeName, $mName) );            
         "
     }
     set src [open $cFn w]
@@ -471,6 +545,15 @@ proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions
     close $lay
     
     return $dic
+}
+
+
+proc callWrapperPath {libAlias  fnName} {
+    return [file join $::dlr::bindingDir $libAlias auto $fnName.call.tcl]
+}
+
+proc structConverterPath {libAlias  structTypeName} {
+    return [file join $::dlr::bindingDir $libAlias auto $structTypeName.convert.tcl]
 }
 
 # #################  CONVERTERS  ####################################

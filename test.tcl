@@ -46,6 +46,11 @@ puts paths=$::auto_path
 set version [package require dlr]
 puts version=$version
 
+set do_bench $($::argc == 1)
+if {$do_bench} { 
+    set bench_reps $(int([lindex $::argv 0])) 
+}
+
 puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
 
@@ -53,24 +58,22 @@ puts bits::ptr=$::dlr::bits::ptr
 ::dlr::pack::int-byVal-asInt   myLocal  89
 assert {[::dlr::unpack::int-byVal-asInt  $myLocal] == 89}
 
-# test extracting type metadata from C.
+# test extracting type metadata from C, and generating wrapper scripts.
 # normally this would be done only after changing the shared library's source code, 
 # not on each run of the script app.
-# normally this would be done by including a .h file, but in this test we include 
-# a .c file instead, and from a specific path.
-set inc "
-    #include \"[file join $::appDir testLib-src testLib.c]\"
-"
-set dic [::dlr::detectStructLayout  testLib  mulByValueT  $inc  $::dlr::defaultCompiler {a b c d}]
-puts "detected: name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
-assert {[dict get $dic members a offset] == 0} ;# all the other offsets depend on the compiler's word size and structure packing behavior.
-assert {[dict get $dic members c size] == $::dlr::size::int}
+::dlr::refreshMeta $( ! $do_bench)
 
 # load the library binding that was generated just now.
 assert {[llength [::dlr::allLibAliases]] == 0}
 ::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
 assert {[llength [::dlr::allLibAliases]] == 1}
 assert {[lindex [::dlr::allLibAliases] 0] eq {testLib}}
+if [::dlr::refreshMeta] {
+    set dic $::test::mulByValueT
+    puts "detected: name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
+    assert {[dict get $dic members a offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
+    assert {[dict get $dic members c size] == $::dlr::size::int}
+}
 
 # strtolWrap test
 alias  strtol  ::dlr::lib::testLib::strtolWrap::call
@@ -96,29 +99,6 @@ loop attempt 0 3 {
     assert {[::dlr::unpack::ptr-byVal-asInt $::dlr::null] == 0}
 }
 
-# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
-# difference is under 1%, far less than the background noise from the OS multitasking.
-if {$::argc == 1} {
-    set reps $(int([lindex $::argv 0]))
-    if {$reps > 0} {
-        set str 905
-        set endP $::dlr::null
-        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
-        bench fullWrap $($reps / 10) {
-            strtol  $str  endP  10
-        }
-        bench pack3 $($reps / 10) {   
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
-            ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
-            ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
-        }
-        bench callToNative $reps {
-            ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
-        }
-        exit 0
-    }
-}
-
 # mulByValue test
 alias  mulByValue  ::dlr::lib::testLib::mulByValue::call
 loop attempt 2 5 {
@@ -138,5 +118,23 @@ loop attempt 0 3 {
     ::dlr::freeHeap $chunk
 }
 
+# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
+# difference is under 1%, far less than the background noise from the OS multitasking.
+if {$do_bench} {
+    set str 905
+    set endP $::dlr::null
+    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
+    bench fullWrap $($bench_reps / 10) {
+        strtol  $str  endP  10
+    }
+    bench pack3 $($bench_reps / 10) {   
+        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
+        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
+        ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+    }
+    bench callToNative $bench_reps {
+        ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
+    }
+}
 
 puts "*** ALL TESTS PASS ***"
