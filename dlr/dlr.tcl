@@ -175,8 +175,6 @@ proc ::dlr::initDlr {} {
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
-    #todo: remove this first one
-    source [file join $::dlr::bindingDir $libAlias auto   $libAlias.tcl]
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
 }

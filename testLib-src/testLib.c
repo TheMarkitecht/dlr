@@ -33,7 +33,6 @@ typedef uint32_t u32;
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
 // wrapper of a simple libc function, to help debugging and smoke testing.
-//todo: rename to strtolTest throughout.
 extern long int strtolTest(const char *nptr, char **endptr, int base);
 long int strtolTest(const char *nptr, char **endptr, int base) {
     return strtol(nptr, endptr, base);
