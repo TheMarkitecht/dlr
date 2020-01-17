@@ -122,15 +122,16 @@ loop attempt 0 3 {
 # difference is under 1%, far less than the background noise from the OS multitasking.
 if {$do_bench} {
     set str 905
-    set endP $::dlr::null
-    ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
+    set endP 0
     bench fullWrap $($bench_reps / 10) {
         strtol  $str  endP  10
     }
+    set endP $::dlr::null
+    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
     bench pack3 $($bench_reps / 10) {   
-        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
-        ::dlr::pack::ptr  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
-        ::dlr::pack::int  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
+        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::radix  10
     }
     bench callToNative $bench_reps {
         ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  

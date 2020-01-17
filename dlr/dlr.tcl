@@ -226,6 +226,27 @@ proc ::dlr::validateScriptForm {type fullType scriptForm} {
     }        
 }
 
+# return the first portion of structTypeName, which is the qualifier for the 
+# structure's metadata namespace.
+proc ::dlr::structQal {structTypeName} {
+    return ::[nsJoin [lrange [nsSplit $structTypeName] 0 4]]
+}
+
+proc ::dlr::nsSplit {ns} {
+    return [regexp -all -inline {[^:]+} $ns]    
+}
+
+proc ::dlr::nsJoin {parts} {
+    return [join $parts :: ]
+}
+
+proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
+    if {[isStructType $fullType]} {
+        return [structQal $fullType]::${conversion}-${passMethod}-$scriptForm
+    }
+    return ::dlr::${conversion}::[namespace tail $fullType]-${passMethod}-$scriptForm
+}
+
 proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescrip} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
     
@@ -259,10 +280,8 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
 
         # this version uses only byVal converters, and wraps them in script for byPtr.
         # in future, the converters might be allowed to implement byPtr also, for more speed etc.
-        set packerBase  $( [isStructType $fullType]  ?  "${fullType}::pack"  :  "::dlr::pack::$type" )
-        set ${pQal}packer  ${packerBase}-byVal-${scriptForm}
-        set unpackerBase  $( [isStructType $fullType]  ?  "${fullType}::unpack"  :  "::dlr::unpack::$type" )
-        set ${pQal}unpacker  ${unpackerBase}-byVal-${scriptForm}
+        set ${pQal}packer   [converterName   pack $fullType byVal $scriptForm]
+        set ${pQal}unpacker [converterName unpack $fullType byVal $scriptForm]
 
         if {$passMethod eq {byPtr}} {
             set ${pQal}targetNativeName  ${pQal}targetNative
@@ -282,8 +301,7 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
     set ${rQal}type  $fullType
     validateScriptForm $type $fullType $scriptForm
     set ${rQal}scriptForm  $scriptForm
-    set unpackerBase  $( [isStructType $fullType]  ?  "${fullType}::unpack"  :  "::dlr::unpack::$type" )
-    set ${rQal}unpacker  ${unpackerBase}-${passMethod}-${scriptForm}
+    set ${rQal}unpacker  [converterName unpack $fullType byVal $scriptForm]
     
     # prepare a metaBlob to hold dlrNative and FFI data structures.  
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
@@ -373,7 +391,6 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
         
         # unpack a parm passed back from the native func.
         if {$dir in {out inOut}} {
-#debugscript begin            
             if {$passMethod eq {byPtr}} {
                 append body "set  $procArg  \[ $unpacker  \$$targetNativeName \] \n"
             } else {
@@ -443,10 +460,8 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
         validateScriptForm $mType $mFullType $mScriptForm        
         set ${mQal}scriptForm $mScriptForm
         
-        set packerBase  ::dlr::pack::$mType
-        set ${mQal}packer  ${packerBase}-byVal-${mScriptForm}
-        set unpackerBase  ::dlr::unpack::$mType
-        set ${mQal}unpacker  ${unpackerBase}-byVal-${mScriptForm}
+        set ${mQal}packer    [converterName   pack $mFullType byVal $mScriptForm]
+        set ${mQal}unpacker  [converterName unpack $mFullType byVal $mScriptForm]
     }
     if {[llength $membersRemain] > 0} {
         error "Library '$libAlias' struct '$typ' member '[lindex $membersRemain 0]' is mentioned in the detected metadata but not in the given declaration."
@@ -461,35 +476,45 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     set procs [list]
     set packerParms {packVarName unpackedData {offsetBytes 0} {nextOffsetVarName {}}}
-    set unpackerParms {packedValue offsetBytes {nextOffsetVarName {}}}
+    set unpackerParms {packedValue {offsetBytes 0} {nextOffsetVarName {}}}
     set memberTemps [lmap m [set ${sQal}memberOrder] {expr {"mv::$m"}}]
 
     #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
     
     # generate pack-byVal-asList
-    set body "lassign \$unpackedData  [join $memberTemps {  }] \n"
-    append body "::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    set body "
+        lassign \$unpackedData  [join $memberTemps {  }] 
+        ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
     foreach  mName [set ${sQal}memberOrder]  mTemp $memberTemps  {
         set mQal ${sQal}member::${mName}::
-        append body "[set ${mQal}packer]  \$packVarName  \$$mTemp  \$${mQal}offset \n"
+        append body "[set ${mQal}packer]  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
         # that could run faster (maybe?) if it placed the offset integer into the script
         # instead of fetching it from metadata at run time.  then again, it might not.
         # it would definitely be harder to read and maintain with the magic numbers, 
         # and more likely to fail after the struct is recompiled.
     }
+    append body "
+        if { \$nextOffsetVarName ne {}} { 
+            upvar \$nextOffsetVarName next 
+            set next \$( \$offsetBytes + \$${sQal}size ) 
+        } " \n
     # compose "proc" command.
     lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n }"
     
     #todo:  generate pack-byVal-asDict
     
     # generate unpack-byVal-asList
-    set body {}
-    append body {return  [list  \ }  \n
-    foreach  mName [set ${sQal}memberOrder]  mTemp $memberTemps  {
+    set body "
+        if { \$nextOffsetVarName ne {}} { 
+            upvar \$nextOffsetVarName next 
+            set next \$( \$offsetBytes + \$${sQal}size ) 
+        } \n"
+    append body  "return  \[ list  " \\ \n
+    foreach  mName [set ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
-        append body " \[ [set ${mQal}unpacker]  \$packedValue  \$${mQal}offset \]  \\ \n"
+        append body " \[ [set ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \]  " \\ \n
     }
-    append body {]}  \n
+    append body  \]  \n
     # compose "proc" command.
     lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n }"
 

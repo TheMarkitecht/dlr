@@ -41,6 +41,7 @@ long int strtolWrap(const char *nptr, char **endptr, int base) {
 
 // pass a struct or array by value.  return a different version of that.
 typedef struct {int a, b, c, d; } mulByValueT;
+//todo: rename to quadT throughout.
 extern mulByValueT mulByValue(const mulByValueT st, const int factor);
 mulByValueT mulByValue(const mulByValueT st, const int factor) {
     mulByValueT r = {st.a * factor, st.b * factor, st.c * factor, st.d * factor};

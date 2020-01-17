@@ -42,14 +42,18 @@ cd $project/testLib-src
 gcc $compile -o testLib.o  testLib.c
 gcc $linkSO -o testLib.so  testLib.o 
 
-# run tests
+# run automated tests
 cd $project
 export JIMLIB=$project/dlr:$project/dlrNative-src
 ./jimsh  test.tcl
 
+# check for memory leak
 valgrind  -q  --leak-check=full  --leak-resolution=high  \
     --show-leak-kinds=definite,possible  --errors-for-leak-kinds=definite,possible  \
     ./jimsh  test.tcl
+
+# test again with refreshMeta left off (the default).  that's a different code path.
+./jimsh  test.tcl  1000000
 
 # speed benchmark
 # ./jimsh  test.tcl  30000000
