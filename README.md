@@ -23,12 +23,12 @@ without writing any C/C++ code if you don't want to.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script library.
 * Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
-* Automatically generated code is kept separate, in the auto/ directory, while handwritten binding scripts are kept in the script/ directory.
-* Ultra-simple build process - source is just one .c file.
+* Automatically generated code is kept separate, in the `auto/` directory, while handwritten binding scripts are kept in the `script/` directory.
+* Ultra-simple build process.  Native source for dlr is just one .c file.
 * Works with Jim's `package require` command.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
 * Tested on Debian 10.0 with libffi.so.6.0.4.
-* Might work well on ARM too (drop me a line if you've tried it!).
+* Might work well on ARM too.  It has passed tests there before.  Drop me a line if you've tried it!
 
 ## Requirements:
 
