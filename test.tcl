@@ -69,7 +69,7 @@ assert {[llength [::dlr::allLibAliases]] == 0}
 assert {[llength [::dlr::allLibAliases]] == 1}
 assert {[lindex [::dlr::allLibAliases] 0] eq {testLib}}
 if [::dlr::refreshMeta] {
-    set dic $::test::mulByValueT
+    set dic $::test::quadT
     puts "detected: name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
     assert {[dict get $dic members a offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
     assert {[dict get $dic members c size] == $::dlr::size::int}
@@ -107,7 +107,7 @@ loop attempt 2 5 {
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
-    puts mulByValueT.d=$d
+    puts quadT.d=$d
 }
 
 # allocHeap test

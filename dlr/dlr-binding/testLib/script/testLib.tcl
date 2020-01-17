@@ -53,19 +53,19 @@ if [::dlr::refreshMeta] {
     set inc "
         #include \"[file join $::appDir testLib-src testLib.c]\"
     "
-    set ::test::mulByValueT [::dlr::detectStructLayout  testLib  mulByValueT  \
+    set ::test::quadT [::dlr::detectStructLayout  testLib  quadT  \
         $inc  $::dlr::defaultCompiler $members]
     # capturing the result there in ::test is for testing only; normally that's not needed.
 }
-::dlr::declareStructType  testLib  mulByValueT  $members
+::dlr::declareStructType  testLib  quadT  $members
 #todo: refactor struct extraction and validation so it can all happen in one call, with the members list appearing just once, at declareStructType.
 if [::dlr::refreshMeta] {
-    ::dlr::generateStructConverters  testLib  mulByValueT
+    ::dlr::generateStructConverters  testLib  quadT
 }
-source [structConverterPath  testLib  mulByValueT]
+source [structConverterPath  testLib  quadT]
 
-::dlr::declareCallToNative  testLib  {mulByValueT asList}  mulByValue  {
-    {in     byVal   mulByValueT     st              asList}
+::dlr::declareCallToNative  testLib  {quadT asList}  mulByValue  {
+    {in     byVal   quadT     st              asList}
     {in     byVal   int             factor          asInt}
 }
 if [::dlr::refreshMeta] {
