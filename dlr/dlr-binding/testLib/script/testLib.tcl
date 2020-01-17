@@ -40,7 +40,7 @@ source [callWrapperPath  testLib  strtolTest]
 # ############ mulByValue and its types ######################################
 
 # extract type metadata from C.
-set members {
+::dlr::declareStructType  testLib  quadT  {
     {int  a  asInt}
     {int  b  asInt}
     {int  c  asInt}
@@ -54,11 +54,10 @@ if [::dlr::refreshMeta] {
         #include \"[file join $::appDir testLib-src testLib.c]\"
     "
     set ::test::quadT [::dlr::detectStructLayout  testLib  quadT  \
-        $inc  $::dlr::defaultCompiler $members]
+        $inc  $::dlr::defaultCompiler]
     # capturing the result there in ::test is for testing only; normally that's not needed.
 }
-::dlr::declareStructType  testLib  quadT  $members
-#todo: refactor struct extraction and validation so it can all happen in one call, with the members list appearing just once, at declareStructType.
+validateStructType  testLib  quadT
 if [::dlr::refreshMeta] {
     ::dlr::generateStructConverters  testLib  quadT
 }

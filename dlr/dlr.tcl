@@ -27,8 +27,12 @@ set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
 #todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
 
-# this is already called when the package is sourced.
+# this is already called when the package is sourced.  no need for the app to call this.
 proc ::dlr::initDlr {} {
+
+    # script interpreter support.
+    alias  ::dlr::get  set ;# allows "get" as a more self-documenting alternative to the one-argument "set".
+    #todo: use "get" throughout.
 
     # ################  DLR SYSTEM DATA STRUCTURES  #################
     # for these, dlr script package extracts as much dimensional information as possible
@@ -413,10 +417,38 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     return $procCmd
 }
 
+# this is the required first step before using a struct type.
 proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     
-    # load up the type information previously detected and cached on disk.
+    # unpack metadata from the given declaration and memorize it.
+    #todo: support nested structs.
+    set ${sQal}memberOrder [list]
+    foreach {mDescrip} $membersDescrip {
+        lassign $mDescrip mType mName mScriptForm
+        set mQal ${sQal}member::${mName}::
+        
+        lappend ${sQal}memberOrder $mName
+        
+        if {"::dlr::type::$mType" ni [info vars ::dlr::type::*]} {
+            error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
+        }
+        set mFullType ::dlr::type::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
+        set ${mQal}typeName $mFullType
+        
+        validateScriptForm $mType $mFullType $mScriptForm        
+        set ${mQal}scriptForm $mScriptForm
+        
+        set ${mQal}packer    [converterName   pack $mFullType byVal $mScriptForm]
+        set ${mQal}unpacker  [converterName unpack $mFullType byVal $mScriptForm]
+    }
+}
+
+# this is the required second step after declareStructType.  in between is (sometimes) detectStructLayout.
+proc ::dlr::validateStructType {libAlias  structTypeName} {
+    set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
+    
+    # load up the type information previously detected and cached in the binding dir.
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $structTypeName.struct]
     if { ! [file readable $layoutFn]} {
         error "Structure layout metadata was not detected for library '$libAlias' type '$typeName'."
@@ -427,43 +459,29 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
 
     # unpack metadata from the given declaration and merge it with the cached detected info.
     #todo: support nested structs.
-    #todo: factor out all the validation vs. detected info, and move that to another command like "validateStructType"
     set ${sQal}size $sDic(size)
     set membersRemain [dict keys $sDic(members)]
-    set ${sQal}memberOrder $membersRemain
     set typeVars [list]
-    foreach {mDescrip} $membersDescrip {
-        lassign $mDescrip mType mName mScriptForm
+    foreach mName [set ${sQal}memberOrder] {
         set mQal ${sQal}member::${mName}::
+        set mFullType [set ${mQal}typeName]
+        lappend typeVars $mFullType
         
         set ix [lsearch $membersRemain $mName]
         if {$ix < 0} {
             error "Library '$libAlias' struct '$typ' member '$mName' is not found in the detected metadata."
         }
         set membersRemain [lreplace $membersRemain $ix $ix]    
-            
-        if {"::dlr::type::$mType" ni [info vars ::dlr::type::*]} {
-            error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
-        }
-        set ${mQal}typeName $mType
-        set mFullType ::dlr::type::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
-        set ${mQal}typeCode [set $mFullType]
-        lappend typeVars $mFullType
         
         set mDic [dict get $sDic members $mName]
         set ${mQal}offset $mDic(offset)
         
-        if {$mDic(size) != [set ::dlr::size::$mType]} {
+        if {$mDic(size) != [set ::dlr::size::[namespace tail $mFullType]]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
         }
-        
-        validateScriptForm $mType $mFullType $mScriptForm        
-        set ${mQal}scriptForm $mScriptForm
-        
-        set ${mQal}packer    [converterName   pack $mFullType byVal $mScriptForm]
-        set ${mQal}unpacker  [converterName unpack $mFullType byVal $mScriptForm]
     }
     if {[llength $membersRemain] > 0} {
+        # this could happen e.g. if the cached metadata was generated with an earlier version of the declaration.
         error "Library '$libAlias' struct '$typ' member '[lindex $membersRemain 0]' is mentioned in the detected metadata but not in the given declaration."
     }
     
@@ -531,15 +549,16 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
 # works with either gcc or clang.
 # struct layout metadata is returned, and also cached in the binding dir.
-proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions  membersDescrip} {
+proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions} {
+    set sQal ::dlr::lib::${libAlias}::struct::${typeName}::
+
     # determine paths.
-    set cFn [file join $::dlr::bindingDir $libAlias auto getStructLayout.c]
-    set binFn [file join $::dlr::bindingDir $libAlias auto getStructLayout]
+    set cFn [file join $::dlr::bindingDir $libAlias auto detectStructLayout.c]
+    set binFn [file join $::dlr::bindingDir $libAlias auto detectStructLayout]
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
     
     # generate C source code to extract metadata.
-    foreach mDescrip $membersDescrip {
-        lassign $mDescrip  mType  mName  mScriptForm
+    foreach mName [set ${sQal}memberOrder] {
         append membCode "
             printf(\"    {$mName} {size %zu offset %zu }\\n\", 
                 sizeof( a.$mName ), offsetof($typeName, $mName) );            

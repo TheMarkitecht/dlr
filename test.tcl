@@ -138,4 +138,6 @@ if {$do_bench} {
     }
 }
 
+#todo: test simple scalar types declared by libs.  alias that to an existing type in the app, outside of dlr?
+
 puts "*** ALL TESTS PASS ***"

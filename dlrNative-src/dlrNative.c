@@ -731,7 +731,7 @@ int unpack_64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 int unpack_char_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     char* buf = NULL;
     if (unpackerSetup_byVal(itp, objc, objv, 0, (void**)&buf) != JIM_OK) return JIM_ERR;
-    //todo: limit to a certain max length here for safety.  have the package script fetch that from metadata and pass it to here.
+    //todo: limit to a certain max length here for safety.  have the lib's binding script fetch that from metadata and pass it to here.
     Jim_SetResultString(itp, (char*) buf, -1);
     return JIM_OK;
 }
