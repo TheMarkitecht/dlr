@@ -162,8 +162,10 @@ proc ::dlr::initDlr {} {
     #todo: test that, for passing a null char* in and out of native func.
     set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
 
-    # compiler support
+    # compiler support.
+    # in the current version, all features work with either gcc or clang.
     set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]    
+    set ::dlr::compiler $::dlr::defaultCompiler
 }
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
@@ -549,13 +551,19 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
 # works with either gcc or clang.
 # struct layout metadata is returned, and also cached in the binding dir.
-proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions} {
+proc ::dlr::detectStructLayout {libAlias  typeName} {
     set sQal ::dlr::lib::${libAlias}::struct::${typeName}::
 
     # determine paths.
-    set cFn [file join $::dlr::bindingDir $libAlias auto detectStructLayout.c]
-    set binFn [file join $::dlr::bindingDir $libAlias auto detectStructLayout]
+    set cFn      [file join $::dlr::bindingDir $libAlias auto detectStructLayout.c]
+    set binFn    [file join $::dlr::bindingDir $libAlias auto detectStructLayout]
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
+    set headerFn [file join $::dlr::bindingDir $libAlias script includes.h]
+    
+    # read header file of #include's.
+    set hdr [open $headerFn r]
+    set includes [subst -nobackslashes [read $hdr]]
+    close $hdr
     
     # generate C source code to extract metadata.
     foreach mName [set ${sQal}memberOrder] {
@@ -568,7 +576,8 @@ proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions
     puts $src "
         #include <stddef.h>
         #include <stdio.h>
-        $includeCode
+        
+        $includes
         
         int main (int argc, char **argv) {
             $typeName a;
@@ -580,7 +589,7 @@ proc ::dlr::detectStructLayout {libAlias  typeName  includeCode  compilerOptions
     close $src
     
     # compile and execute C code.
-    exec {*}$compilerOptions  -o $binFn  $cFn
+    exec {*}$::dlr::compiler  -o $binFn  $cFn
     set dic [exec $binFn]
     
     # cache metadata in binding dir.

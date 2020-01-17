@@ -47,14 +47,7 @@ source [callWrapperPath  testLib  strtolTest]
     {int  d  asInt}
 }
 if [::dlr::refreshMeta] {
-    # normally this would be done by including a .h file, but in this test we include 
-    # a .c file instead, and from a specific path.
-    #todo: move this to a .h file in script/ and always include just that one.  eliminate this code snippet here.
-    set inc "
-        #include \"[file join $::appDir testLib-src testLib.c]\"
-    "
-    set ::test::quadT [::dlr::detectStructLayout  testLib  quadT  \
-        $inc  $::dlr::defaultCompiler]
+    set ::test::quadT [::dlr::detectStructLayout  testLib  quadT]
     # capturing the result there in ::test is for testing only; normally that's not needed.
 }
 validateStructType  testLib  quadT

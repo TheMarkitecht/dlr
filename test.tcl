@@ -21,7 +21,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
-set ::appDir [file dirname [info script]]
+set ::appDir [file join [pwd] [file dirname [info script]]]
 
 proc assert {exp} {
     set truth [uplevel 1 [list expr $exp]]
