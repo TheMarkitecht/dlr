@@ -75,8 +75,8 @@ if [::dlr::refreshMeta] {
     assert {[dict get $dic members c size] == $::dlr::size::int}
 }
 
-# strtolWrap test
-alias  strtol  ::dlr::lib::testLib::strtolWrap::call
+# strtolTest test
+alias  strtol  ::dlr::lib::testLib::strtolTest::call
 loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
@@ -127,14 +127,14 @@ if {$do_bench} {
         strtol  $str  endP  10
     }
     set endP $::dlr::null
-    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::endP  [::dlr::addrOf endP]
+    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
     bench pack3 $($bench_reps / 10) {   
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::strP  [::dlr::addrOf str]
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolWrap::parm::endP]
-        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolWrap::parm::radix  10
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
+        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
     }
     bench callToNative $bench_reps {
-        ::dlr::callToNative  ::dlr::lib::testLib::strtolWrap::meta  
+        ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
     }
 }
 

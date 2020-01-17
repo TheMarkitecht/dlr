@@ -348,7 +348,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     foreach  parmBare [set ${fQal}parmOrder]  parmNative [set ${fQal}parmOrderNative] {
         # parmBare is the simple name of the parameter, such as "radix".
         # parmNative is the qualified name of the variable holding the parm's 
-        # packed binary data for one call, such as "::dlr::lib::testLib::strtolWrap::parm::radix::native"
+        # packed binary data for one call, such as "::dlr::lib::testLib::strtolTest::parm::radix::native"
         # that qualified name stays the same across calls, but often it must hold
         # a different value for each call, so its content must be repacked for each call.
         

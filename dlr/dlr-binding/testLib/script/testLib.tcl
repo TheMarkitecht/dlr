@@ -24,18 +24,18 @@
 
 # this script sets up all metdata required to use the library "testLib" in a script app.
 
-# ############ strtolWrap and its types ######################################
+# ############ strtolTest and its types ######################################
 
 #todo: upgrade with better passMethod's and scriptForm's.  native, int, float, list (for structs), dict (for structs).
-::dlr::declareCallToNative  testLib  {long asInt}  strtolWrap  {
+::dlr::declareCallToNative  testLib  {long asInt}  strtolTest  {
     {in     byPtr   char        str             asString}
     {out    byPtr   ptr         endP            asInt}
     {in     byVal   int         radix           asInt}
 }
 if [::dlr::refreshMeta] {
-    ::dlr::generateCallProc  testLib  strtolWrap
+    ::dlr::generateCallProc  testLib  strtolTest
 }
-source [callWrapperPath  testLib  strtolWrap]
+source [callWrapperPath  testLib  strtolTest]
 
 # ############ mulByValue and its types ######################################
 
