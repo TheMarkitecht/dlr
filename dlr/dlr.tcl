@@ -42,7 +42,6 @@ proc ::dlr::initDlr {} {
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
-    #todo: document in readme etc. how generated code is placed in auto/ and handwritten code in script/
     set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::directions           [list in out inOut]
     ::dlr::refreshMeta              0
@@ -169,12 +168,23 @@ proc ::dlr::initDlr {} {
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
 
-# first step in using a native library.
-# this will automatically regenerate all the
-# cached metadata and generated scripts if [::dlr::refreshMeta] is true.
-proc ::dlr::loadLib {libAlias fileNamePath} {
+# loadLib is the first step in using a native library.
+# in all cases loadLib will dlopen() the .so file, and source the corresponding
+# handwritten binding script (under dlr::bindingDir) into the live interpreter.
+# but first, loadLib will set dlr::refreshMeta in order to automatically regenerate all
+# that lib's cached metadata and generated scripts, if metaAction is refreshMeta.
+# typically you should pass refreshMeta (rather than keepMeta) to loadLib if you 
+# suspect the native library's source or binary have changed since the last time.
+# using it on every run of the script app would cost additional startup time.
+proc ::dlr::loadLib {metaAction  libAlias  fileNamePath} {
+    if {$metaAction ni {refreshMeta keepMeta}} {
+        error "Invalid meta action: $metaAction"
+    }
+    refreshMeta $( $metaAction eq {refreshMeta} )
+    
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
+    
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
 }

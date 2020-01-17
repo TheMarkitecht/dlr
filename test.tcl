@@ -46,10 +46,7 @@ puts paths=$::auto_path
 set version [package require dlr]
 puts version=$version
 
-set do_bench $($::argc == 1)
-if {$do_bench} { 
-    set bench_reps $(int([lindex $::argv 0])) 
-}
+lassign  $::argv  metaAction  benchReps
 
 puts bits::int=$::dlr::bits::int
 puts bits::ptr=$::dlr::bits::ptr
@@ -58,15 +55,10 @@ puts bits::ptr=$::dlr::bits::ptr
 ::dlr::pack::int-byVal-asInt   myLocal  89
 assert {[::dlr::unpack::int-byVal-asInt  $myLocal] == 89}
 
-# test extracting type metadata from C, and generating wrapper scripts.
-# normally this would be done only after changing the shared library's source code, 
-# not on each run of the script app.
-::dlr::refreshMeta $( ! $do_bench)
-#todo: move this to a parameter of loadLib instead.
-
 # load the library binding for testLib.  
+set metaAction [lindex $::argv 0]
 assert {[llength [::dlr::allLibAliases]] == 0}
-::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
+::dlr::loadLib  $metaAction  testLib  [file join $::appDir testLib-src testLib.so]
 assert {[llength [::dlr::allLibAliases]] == 1}
 assert {[lindex [::dlr::allLibAliases] 0] eq {testLib}}
 if [::dlr::refreshMeta] {
@@ -122,20 +114,21 @@ loop attempt 0 3 {
 
 # speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
 # difference is under 1%, far less than the background noise from the OS multitasking.
-if {$do_bench} {
+if {$benchReps ne {}} {
+    set benchReps $(int($benchReps))
     set str 905
     set endP 0
-    bench fullWrap $($bench_reps / 10) {
+    bench fullWrap $($benchReps / 10) {
         strtol  $str  endP  10
     }
     set endP $::dlr::null
     ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
-    bench pack3 $($bench_reps / 10) {   
+    bench pack3 $($benchReps / 10) {   
         ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
         ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
         ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
     }
-    bench callToNative $bench_reps {
+    bench callToNative $benchReps {
         ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
     }
 }
