@@ -51,7 +51,7 @@ proc ::dlr::initDlr {} {
     }
 
     # ffi type codes map.  certain types are deleted for being too vague etc.
-    #todo: support functions returning void.
+    #todo: support functions returning void.  add a test for that.
     set ::dlr::ffiType::void        0
     set ::dlr::ffiType::float       2
     set ::dlr::ffiType::double      3
@@ -593,6 +593,5 @@ proc structConverterPath {libAlias  structTypeName} {
 #todo: supply example packers and unpackers.
 
 #todo: more converters for passing by pointer etc.  assume existing ones are for pass-by-value.
-#todo: more converters for list-as-struct, and for handling structs as blobs (no conversion, for speed).
 
 ::dlr::initDlr
