@@ -31,8 +31,7 @@ package provide dlr $::dlr::version
 proc ::dlr::initDlr {} {
 
     # script interpreter support.
-    alias  ::dlr::get  set ;# allows "get" as a more self-documenting alternative to the one-argument "set".
-    #todo: use "get" throughout.
+    alias  ::dlr::get  set ;# allows "get" as an alternative to the one-argument "set", with much clearer intent.
 
     # ################  DLR SYSTEM DATA STRUCTURES  #################
     # for these, dlr script package extracts as much dimensional information as possible
@@ -51,7 +50,7 @@ proc ::dlr::initDlr {} {
     # bit and byte lengths of simple types, for use in converters.
     foreach typ [dict keys $::dlr::sizeOfSimpleTypes] {
         set ::dlr::size::$typ       $::dlr::sizeOfSimpleTypes($typ)
-        set ::dlr::bits::$typ       $(8 * [set ::dlr::size::$typ])
+        set ::dlr::bits::$typ       $(8 * [get ::dlr::size::$typ])
     }
 
     # ffi type codes map.  certain types are deleted for being too vague etc.
@@ -73,19 +72,19 @@ proc ::dlr::initDlr {} {
     # ... and an extended map also, including those plus additional aliases 
     # corresponding to C language types on the host platform.
     # we assume unsigned ints are the same length as the signed ints.
-    set ::dlr::type::int            [set ::dlr::ffiType::sInt$::dlr::bits::int       ]
-    set ::dlr::type::short          [set ::dlr::ffiType::sInt$::dlr::bits::short     ]
-    set ::dlr::type::long           [set ::dlr::ffiType::sInt$::dlr::bits::long      ]
-    set ::dlr::type::longLong       [set ::dlr::ffiType::sInt$::dlr::bits::longLong  ]
-    set ::dlr::type::sSizeT         [set ::dlr::ffiType::sInt$::dlr::bits::sizeT     ]
-    set ::dlr::type::uInt           [set ::dlr::ffiType::uInt$::dlr::bits::int       ]
-    set ::dlr::type::uShort         [set ::dlr::ffiType::uInt$::dlr::bits::short     ]
-    set ::dlr::type::uLong          [set ::dlr::ffiType::uInt$::dlr::bits::long      ]
-    set ::dlr::type::uLongLong      [set ::dlr::ffiType::uInt$::dlr::bits::longLong  ]
-    set ::dlr::type::sizeT          [set ::dlr::ffiType::uInt$::dlr::bits::sizeT     ]
+    set ::dlr::type::int            [get ::dlr::ffiType::sInt$::dlr::bits::int       ]
+    set ::dlr::type::short          [get ::dlr::ffiType::sInt$::dlr::bits::short     ]
+    set ::dlr::type::long           [get ::dlr::ffiType::sInt$::dlr::bits::long      ]
+    set ::dlr::type::longLong       [get ::dlr::ffiType::sInt$::dlr::bits::longLong  ]
+    set ::dlr::type::sSizeT         [get ::dlr::ffiType::sInt$::dlr::bits::sizeT     ]
+    set ::dlr::type::uInt           [get ::dlr::ffiType::uInt$::dlr::bits::int       ]
+    set ::dlr::type::uShort         [get ::dlr::ffiType::uInt$::dlr::bits::short     ]
+    set ::dlr::type::uLong          [get ::dlr::ffiType::uInt$::dlr::bits::long      ]
+    set ::dlr::type::uLongLong      [get ::dlr::ffiType::uInt$::dlr::bits::longLong  ]
+    set ::dlr::type::sizeT          [get ::dlr::ffiType::uInt$::dlr::bits::sizeT     ]
     set ::dlr::type::char           {}
     foreach v [info vars ::dlr::ffiType::*] {
-        set  ::dlr::type::[namespace tail $v]  [set $v]
+        set  ::dlr::type::[namespace tail $v]  [get $v]
     }
 
     # aliases to pass through to native implementations of certain dlr system commands.
@@ -189,13 +188,14 @@ proc ::dlr::allLibAliases {} {
 
 # getter/setter for the refreshMeta boolean flag.
 # this determines whether metadata and wrapper scripts will be regenerated (and cached again)
-# on this particular startup of the script app.
+# when function and type declarations are processed.
+# that's generally during script app startup.
 proc ::dlr::refreshMeta {args} {
     return [set ::dlr::refreshMetaFlag {*}$args]
 }
 
 proc ::dlr::fnAddr {fnName libAlias} {
-    return [native::fnAddr $fnName [set ::dlr::libHandle::$libAlias]]
+    return [native::fnAddr $fnName [get ::dlr::libHandle::$libAlias]]
 }
 
 proc ::dlr::isStructType {typeVarName} {
@@ -231,7 +231,7 @@ proc ::dlr::validateScriptForm {type fullType scriptForm} {
     if {[isStructType $fullType]} {
         set type struct
     }
-    if {$scriptForm ni [set ::dlr::scriptForms::$type]} {
+    if {$scriptForm ni [get ::dlr::scriptForms::$type]} {
         error "Invalid scriptForm was given."
     }        
 }
@@ -334,7 +334,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
     # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
     prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
-        ${rQal}native  [set ${rQal}type]  $orderNative  $types  
+        ${rQal}native  [get ${rQal}type]  $orderNative  $types  
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
@@ -372,7 +372,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     set procArgs [list]
     set procFormalParms [list]
     set body {}
-    foreach  parmBare [set ${fQal}parmOrder]  parmNative [set ${fQal}parmOrderNative] {
+    foreach  parmBare [get ${fQal}parmOrder]  parmNative [get ${fQal}parmOrderNative] {
         # parmBare is the simple name of the parameter, such as "radix".
         # parmNative is the qualified name of the variable holding the parm's 
         # packed binary data for one call, such as "::dlr::lib::testLib::strtolTest::parm::radix::native"
@@ -408,8 +408,8 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     
     # call unpackers to unpack "out" parms.
     foreach  \
-        parmBare  [set ${fQal}parmOrder]  \
-        parmNative  [set ${fQal}parmOrderNative]  \
+        parmBare  [get ${fQal}parmOrder]  \
+        parmNative  [get ${fQal}parmOrderNative]  \
         procArg  $procArgs  {
             
         # set up local names to access all the metadata for this parm.
@@ -427,7 +427,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     }
     
     # unpack return value.
-    append body "return  \[ [set ${rQal}unpacker] \$${rQal}native \] \n"
+    append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \] \n"
 
     # compose "proc" command.
     set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"
@@ -502,9 +502,9 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
     set ${sQal}size $sDic(size)
     set membersRemain [dict keys $sDic(members)]
     set typeVars [list]
-    foreach mName [set ${sQal}memberOrder] {
+    foreach mName [get ${sQal}memberOrder] {
         set mQal ${sQal}member::${mName}::
-        set mFullType [set ${mQal}type]
+        set mFullType [get ${mQal}type]
         lappend typeVars $mFullType
         
         set ix [lsearch $membersRemain $mName]
@@ -516,7 +516,7 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
         set mDic [dict get $sDic members $mName]
         set ${mQal}offset $mDic(offset)
         
-        if {$mDic(size) != [set ::dlr::size::[namespace tail $mFullType]]} {
+        if {$mDic(size) != [get ::dlr::size::[namespace tail $mFullType]]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
         }
     }
@@ -535,7 +535,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set procs [list]
     set packerParms {packVarName unpackedData {offsetBytes 0} {nextOffsetVarName {}}}
     set unpackerParms {packedValue {offsetBytes 0} {nextOffsetVarName {}}}
-    set memberTemps [lmap m [set ${sQal}memberOrder] {expr {"mv::$m"}}]
+    set memberTemps [lmap m [get ${sQal}memberOrder] {expr {"mv::$m"}}]
 
     #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
     
@@ -543,9 +543,9 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set body "
         lassign \$unpackedData  [join $memberTemps {  }] 
         ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
-    foreach  mName [set ${sQal}memberOrder]  mTemp $memberTemps  {
+    foreach  mName [get ${sQal}memberOrder]  mTemp $memberTemps  {
         set mQal ${sQal}member::${mName}::
-        append body "[set ${mQal}packer]  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
+        append body "[get ${mQal}packer]  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
         # that could run faster (maybe?) if it placed the offset integer into the script
         # instead of fetching it from metadata at run time.  then again, it might not.
         # it would definitely be harder to read and maintain with the magic numbers, 
@@ -568,9 +568,9 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
             set next \$( \$offsetBytes + \$${sQal}size ) 
         } \n"
     append body  "return  \[ list  " \\ \n
-    foreach  mName [set ${sQal}memberOrder]  {
+    foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
-        append body " \[ [set ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \]  " \\ \n
+        append body " \[ [get ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \]  " \\ \n
     }
     append body  \]  \n
     # compose "proc" command.
@@ -604,7 +604,7 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
     close $hdr
     
     # generate C source code to extract metadata.
-    foreach mName [set ${sQal}memberOrder] {
+    foreach mName [get ${sQal}memberOrder] {
         append membCode "
             printf(\"    {$mName} {size %zu offset %zu }\\n\", 
                 sizeof( a.$mName ), offsetof($typeName, $mName) );            
