@@ -62,17 +62,19 @@ assert {[::dlr::unpack::int-byVal-asInt  $myLocal] == 89}
 # normally this would be done only after changing the shared library's source code, 
 # not on each run of the script app.
 ::dlr::refreshMeta $( ! $do_bench)
+#todo: move this to a parameter of loadLib instead.
 
-# load the library binding that was generated just now.
+# load the library binding for testLib.  
 assert {[llength [::dlr::allLibAliases]] == 0}
 ::dlr::loadLib  testLib  [file join $::appDir testLib-src testLib.so]
 assert {[llength [::dlr::allLibAliases]] == 1}
 assert {[lindex [::dlr::allLibAliases] 0] eq {testLib}}
 if [::dlr::refreshMeta] {
-    set dic $::test::quadT
-    puts "detected: name=$dic(name)  size=$dic(size)  cOfs=[dict get $dic members c offset]"
-    assert {[dict get $dic members a offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
-    assert {[dict get $dic members c size] == $::dlr::size::int}
+    set sQal ::dlr::lib::testLib::struct::quadT::
+    set mQal ${sQal}member::
+    puts "detected:  name=quadT  size=[set ${sQal}size]  cOfs=[set ${mQal}c::offset]"
+    assert {[set ${mQal}a::offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
+    assert {[set ${mQal}c::type] == {::dlr::type::int}}
 }
 
 # strtolTest test

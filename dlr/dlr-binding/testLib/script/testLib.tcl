@@ -22,45 +22,35 @@
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
 
-# this script sets up all metdata required to use the library "testLib" in a script app.
+# this binding script sets up all metdata required to use the library "testLib" in a script app.
+
+# after each declaration, this binding script source's the generated support scripts.
+# per the app's needs, it could instead define its own support procs.
+# or it could source the generated ones, and then modify or further wrap certain ones.
 
 # ############ strtolTest and its types ######################################
 
 #todo: upgrade with better passMethod's and scriptForm's.  native, int, float, list (for structs), dict (for structs).
-::dlr::declareCallToNative  testLib  {long asInt}  strtolTest  {
-    {in     byPtr   char        str             asString}
-    {out    byPtr   ptr         endP            asInt}
-    {in     byVal   int         radix           asInt}
-}
-if [::dlr::refreshMeta] {
-    ::dlr::generateCallProc  testLib  strtolTest
+declareCallToNative  testLib  {long asInt}  strtolTest  {
+    {in     byPtr   char    str     asString}
+    {out    byPtr   ptr     endP    asInt}
+    {in     byVal   int     radix   asInt}
 }
 source [callWrapperPath  testLib  strtolTest]
 
 # ############ mulByValue and its types ######################################
 
 # extract type metadata from C.
-::dlr::declareStructType  testLib  quadT  {
+declareStructType  testLib  quadT  {
     {int  a  asInt}
     {int  b  asInt}
     {int  c  asInt}
     {int  d  asInt}
 }
-if [::dlr::refreshMeta] {
-    set ::test::quadT [::dlr::detectStructLayout  testLib  quadT]
-    # capturing the result there in ::test is for testing only; normally that's not needed.
-}
-validateStructType  testLib  quadT
-if [::dlr::refreshMeta] {
-    ::dlr::generateStructConverters  testLib  quadT
-}
 source [structConverterPath  testLib  quadT]
 
-::dlr::declareCallToNative  testLib  {quadT asList}  mulByValue  {
-    {in     byVal   quadT     st              asList}
-    {in     byVal   int             factor          asInt}
-}
-if [::dlr::refreshMeta] {
-    ::dlr::generateCallProc  testLib  mulByValue
+declareCallToNative  testLib  {quadT asList}  mulByValue  {
+    {in     byVal   quadT   st      asList}
+    {in     byVal   int     factor  asInt}
 }
 source [callWrapperPath  testLib  mulByValue]

@@ -170,6 +170,9 @@ proc ::dlr::initDlr {} {
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
 
+# first step in using a native library.
+# this will automatically regenerate all the
+# cached metadata and generated scripts if [::dlr::refreshMeta] is true.
 proc ::dlr::loadLib {libAlias fileNamePath} {
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
@@ -179,6 +182,7 @@ proc ::dlr::loadLib {libAlias fileNamePath} {
     return {}
 }
 
+# returns the libAlias of every library loaded by dlr so far.
 proc ::dlr::allLibAliases {} {
     return [lmap ns [info vars ::dlr::libHandle::*] {namespace tail $ns}]
 }
@@ -309,6 +313,10 @@ proc ::dlr::declareCallToNative {libAlias  returnTypeDescrip  fnName  parmsDescr
     set ${rQal}scriptForm  $scriptForm
     set ${rQal}unpacker  [converterName unpack $fullType byVal $scriptForm]
     
+    if [refreshMeta] {
+        generateCallProc  $libAlias  $fnName
+    }
+    
     # prepare a metaBlob to hold dlrNative and FFI data structures.  
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
     # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
@@ -420,7 +428,19 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
 }
 
 # this is the required first step before using a struct type.
+#todo: documentation
 proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
+    configureStructType  $libAlias  $structTypeName  $membersDescrip
+    if [refreshMeta] {
+        detectStructLayout  $libAlias  $structTypeName
+    }
+    validateStructType  $libAlias  $structTypeName
+    if [refreshMeta] {
+        generateStructConverters  $libAlias  $structTypeName
+    }
+}
+
+proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     
     # unpack metadata from the given declaration and memorize it.
@@ -436,7 +456,7 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
         }
         set mFullType ::dlr::type::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
-        set ${mQal}typeName $mFullType
+        set ${mQal}type $mFullType
         
         validateScriptForm $mType $mFullType $mScriptForm        
         set ${mQal}scriptForm $mScriptForm
@@ -446,7 +466,6 @@ proc ::dlr::declareStructType {libAlias  structTypeName  membersDescrip} {
     }
 }
 
-# this is the required second step after declareStructType.  in between is (sometimes) detectStructLayout.
 proc ::dlr::validateStructType {libAlias  structTypeName} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     
@@ -466,7 +485,7 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
     set typeVars [list]
     foreach mName [set ${sQal}memberOrder] {
         set mQal ${sQal}member::${mName}::
-        set mFullType [set ${mQal}typeName]
+        set mFullType [set ${mQal}type]
         lappend typeVars $mFullType
         
         set ix [lsearch $membersRemain $mName]
@@ -601,11 +620,11 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
 }
 
 
-proc callWrapperPath {libAlias  fnName} {
+proc ::dlr::callWrapperPath {libAlias  fnName} {
     return [file join $::dlr::bindingDir $libAlias auto $fnName.call.tcl]
 }
 
-proc structConverterPath {libAlias  structTypeName} {
+proc ::dlr::structConverterPath {libAlias  structTypeName} {
     return [file join $::dlr::bindingDir $libAlias auto $structTypeName.convert.tcl]
 }
 
