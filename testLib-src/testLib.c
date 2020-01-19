@@ -59,5 +59,10 @@ dataHandleT dataHandlerPtr(dataHandleT* handleP) {
     return *handleP;
 }
 
+extern void dataHandlerVoid(dataHandleT* handleP);
+void dataHandlerVoid(dataHandleT* handleP) {
+    *handleP = *handleP << 4;
+}
+
 
 //todo: test floating point.

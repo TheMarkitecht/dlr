@@ -70,7 +70,6 @@ proc ::dlr::initDlr {} {
     set ::dlr::bits::void  0
 
     # ffi type codes map.  certain types are deleted for being too vague etc.
-    #todo: support functions returning void.  add a test for that.
     set ::dlr::ffiType::void        0
     set ::dlr::ffiType::float       2
     set ::dlr::ffiType::double      3
@@ -99,7 +98,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::type::uLongLong      [get ::dlr::ffiType::u$::dlr::bits::longLong  ]
     set ::dlr::type::sizeT          [get ::dlr::ffiType::u$::dlr::bits::sizeT     ]
     set ::dlr::type::char           {}
-        #todo: rename char to string, and add char as the 8-bit int type.
+        #todo: rename char to string, and avoid using char for anything.  its intent is too vague.
     # copy all from ffiType.
     foreach v [info vars ::dlr::ffiType::*] {
         set  ::dlr::type::[namespace tail $v]  [get $v]
@@ -136,6 +135,7 @@ proc ::dlr::initDlr {} {
     }
     #todo: asString implies some automatic encoding/decoding as needed.  this really could say "asNative" instead, for now, until encoding features are available.  but "asNative" implies you can't directly use it in scripts.  but in fact you can.
     set ::dlr::scriptForms::char        [list asString]
+    set ::dlr::scriptForms::void        [list]
 
     # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
     # types with length unspecified in C use converters for fixed-size types.
@@ -277,6 +277,9 @@ proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
 }
 
 proc ::dlr::validateScriptForm {type fullType scriptForm} {
+    if {$fullType eq {::dlr::type::void}} {
+        return 
+    }
     if {[isStructType $fullType]} {
         set type struct
     }
@@ -466,7 +469,11 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     
     # call native function.
     set rQal ${fQal}return::
-    append body "set  ${rQal}native  \[ ::dlr::callToNative  ${fQal}meta \] \n"
+    if {[get ${rQal}type] eq {::dlr::type::void}} {
+        append body "::dlr::callToNative  ${fQal}meta \n"
+    } else {
+        append body "set  ${rQal}native  \[ ::dlr::callToNative  ${fQal}meta \] \n"
+    }
     
     # call unpackers to unpack "out" parms.
     foreach  \
@@ -489,7 +496,9 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     }
     
     # unpack return value.
-    append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
+    if {[get ${rQal}type] ne {::dlr::type::void}} {
+        append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
+    }
 
     # compose "proc" command.
     set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"

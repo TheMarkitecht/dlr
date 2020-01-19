@@ -58,3 +58,7 @@ declareCallToNative  applyScript  testLib  {dataHandleT asInt}  dataHandlerPtr  
     {inOut     byPtr   dataHandleT    handleP     asInt}
 }
 
+declareCallToNative  applyScript  testLib  {void}  dataHandlerVoid  {
+    {inOut     byPtr   dataHandleT    handleP     asInt}
+}
+

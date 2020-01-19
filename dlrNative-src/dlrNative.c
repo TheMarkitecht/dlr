@@ -472,12 +472,16 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         return JIM_ERR;
     }  
 
-    // calculate padding of return value AFTER ffi_prep_cif(), since that's where 
-    // rtype->size is computed if rtype is a struct type.
-    meta->returnSizePadded = rtype->size;
-    // FFI requires padding the return variable up to sizeof(ffi_arg).
-    if (meta->returnSizePadded < sizeof(ffi_arg)) 
-        meta->returnSizePadded = sizeof(ffi_arg);
+    if (rtype == &ffi_type_void) {
+        meta->returnSizePadded = 0;
+    } else {
+        // calculate padding of return value AFTER ffi_prep_cif(), since that's where 
+        // rtype->size is computed if rtype is a struct type.
+        meta->returnSizePadded = rtype->size;
+        // FFI requires padding the return variable up to sizeof(ffi_arg).
+        if (meta->returnSizePadded < sizeof(ffi_arg)) 
+            meta->returnSizePadded = sizeof(ffi_arg);
+    }
     
     return JIM_OK;
 }
@@ -536,14 +540,23 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         }
     }  
 
-    // arrange space for return value.
-    void* resultBuf = NULL;
-    Jim_Obj* resultObj = NULL;
-    if (createBufferObj(itp, meta->returnSizePadded, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
+    if (meta->cif.rtype == &ffi_type_void) {
+        // arrange space for a junk return value, just in case libffi decides to write one.
+        ffi_arg rtn;
 
-    // execute call.
-    ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
-    Jim_SetResult(itp, resultObj);
+        // execute call.
+        ffi_call(&meta->cif, meta->fn, &rtn, argPtrs);
+        Jim_SetEmptyResult(itp);
+    } else {
+        // arrange space for return value.
+        void* resultBuf = NULL;
+        Jim_Obj* resultObj = NULL;
+        if (createBufferObj(itp, meta->returnSizePadded, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
+
+        // execute call.
+        ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);
+        Jim_SetResult(itp, resultObj);
+    }
     
     //todo: optionally check for errors, in the ways offered by the most common libs.    
     //todo: optionally call a custom error checking function.
