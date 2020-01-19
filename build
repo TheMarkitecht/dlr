@@ -48,9 +48,9 @@ export JIMLIB=$project/dlr:$project/dlrNative-src
 ./jimsh  test.tcl  refreshMeta
 
 # check for memory leak
-valgrind  -q  --leak-check=full  --leak-resolution=high  \
+valgrind  -q  --error-exitcode=1  --leak-check=full  --leak-resolution=high  \
     --show-leak-kinds=definite,possible  --errors-for-leak-kinds=definite,possible  \
-    ./jimsh  test.tcl  refreshMeta
+    ./jimsh  test.tcl  refreshMeta  >/dev/null
 
 # test again with keepMeta.  that's a different/shorter code path.
 ./jimsh  test.tcl  keepMeta  1000000

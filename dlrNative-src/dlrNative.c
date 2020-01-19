@@ -23,11 +23,12 @@ You should have received a copy of the GNU Lesser General Public License
 along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <jim.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <dlfcn.h>
+#include <jim.h>
 #include <ffi.h>
 //todo: clone, build and test with latest libffi.  system's libffi6-3.2.1-9 is 2014.
 
@@ -78,6 +79,7 @@ typedef struct {
     ffi_cif cif;
     ffiFnP fn;
     Jim_Obj* returnVar;
+    size_t returnSizePadded;
     Jim_Obj* nativeParmsList;
     ffi_type* atypes; // placeholder for first element of the array of type pointers located directly at the end of the structure.
 } metaBlobT;
@@ -159,10 +161,11 @@ int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_NewStringObj(itp, "long", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(long)),
         Jim_NewStringObj(itp, "longLong", -1),      Jim_NewIntObj(itp, (jim_wide)sizeof(long long)),
         Jim_NewStringObj(itp, "ptr", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(void*)),
-        Jim_NewStringObj(itp, "sizeT", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(size_t)),
+        Jim_NewStringObj(itp, "sSizeT", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(ssize_t)),
         Jim_NewStringObj(itp, "float", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(float)),
         Jim_NewStringObj(itp, "double", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(double)),
         Jim_NewStringObj(itp, "longDouble", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(long double)),
+        Jim_NewStringObj(itp, "ffiArg", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(ffi_arg)),
     };
     int numTypes = sizeof(lens) / sizeof(Jim_Obj*);
     for (int i = 0; i < numTypes; i++) {
@@ -468,6 +471,13 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "Failed to prep FFI CIF structure for call.", -1);
         return JIM_ERR;
     }  
+
+    // calculate padding of return value AFTER ffi_prep_cif(), since that's where 
+    // rtype->size is computed if rtype is a struct type.
+    meta->returnSizePadded = rtype->size;
+    // FFI requires padding the return variable up to sizeof(ffi_arg).
+    if (meta->returnSizePadded < sizeof(ffi_arg)) 
+        meta->returnSizePadded = sizeof(ffi_arg);
     
     return JIM_OK;
 }
@@ -529,7 +539,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     // arrange space for return value.
     void* resultBuf = NULL;
     Jim_Obj* resultObj = NULL;
-    if (createBufferObj(itp, meta->cif.rtype->size, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
+    if (createBufferObj(itp, meta->returnSizePadded, &resultBuf, &resultObj) != JIM_OK) return JIM_ERR;
 
     // execute call.
     ffi_call(&meta->cif, meta->fn, resultBuf, argPtrs);

@@ -7,13 +7,16 @@ db assembly -style context 5
 db stack -style limit 8
 
 file ./jimsh
-set args test.tcl
+set args test.tcl keepMeta
 set cwd .
 set env JIMLIB=./dlr:./dlrNative-src
 set solib-search-path .:..
 
 b jim-load.c:33
 r
+
+b ffi_call
+c
 
 #b Jim_ExecCmd
 
@@ -28,8 +31,8 @@ r
 #b unpackerSetup
 #c
 
-b prepMetaBlob
-b callToNative
+#b prepMetaBlob
+#b callToNative
 #b strtolTest
 #p *meta->cif.arg_types 
 # during break at 191:  watch -l meta->cif.arg_types[0]

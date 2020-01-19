@@ -46,11 +46,28 @@ proc ::dlr::initDlr {} {
     set ::dlr::directions           [list in out inOut]
     ::dlr::refreshMeta              0
 
-    # bit and byte lengths of simple types, for use in converters.
+#todo: reorganize type codes and metadata of simple types, so they're not in parallel any more.  ::dlr::simple::$type::code etc.  and eliminate proc sizeof and other places that use isStructType etc. to apply special treatment to simple types.
+
+    # bit and byte lengths of simple types, for use in converters.  byte lengths are useful for
+    # dlr's converters.  bit lengths are more useful for Jim's pack/unpack, but those are slower.
     foreach typ [dict keys $::dlr::sizeOfSimpleTypes] {
         set ::dlr::size::$typ       $::dlr::sizeOfSimpleTypes($typ)
         set ::dlr::bits::$typ       $(8 * [get ::dlr::size::$typ])
     }
+    foreach size {8 16 32 64} {
+        foreach sign {u i} {
+            set ::dlr::size::${sign}$size  $($size / 8)
+            set ::dlr::bits::${sign}$size  $size
+        }
+    }
+    # we assume unsigned ints are the same length as the signed ints.
+    foreach signed {char short int long longLong sSizeT} \
+        unsigned {uChar uShort uInt uLong uLongLong sizeT} {
+        set ::dlr::size::$unsigned  [get ::dlr::size::$signed]
+        set ::dlr::bits::$unsigned  [get ::dlr::bits::$signed]
+    }
+    set ::dlr::size::void  0
+    set ::dlr::bits::void  0
 
     # ffi type codes map.  certain types are deleted for being too vague etc.
     #todo: support functions returning void.  add a test for that.
@@ -58,30 +75,32 @@ proc ::dlr::initDlr {} {
     set ::dlr::ffiType::float       2
     set ::dlr::ffiType::double      3
     set ::dlr::ffiType::longDouble  4
-    set ::dlr::ffiType::uInt8       5
-    set ::dlr::ffiType::sInt8       6
-    set ::dlr::ffiType::uInt16      7
-    set ::dlr::ffiType::sInt16      8
-    set ::dlr::ffiType::uInt32      9
-    set ::dlr::ffiType::sInt32      10
-    set ::dlr::ffiType::uInt64      11
-    set ::dlr::ffiType::sInt64      12
+    set ::dlr::ffiType::u8          5
+    set ::dlr::ffiType::i8          6
+    set ::dlr::ffiType::u16         7
+    set ::dlr::ffiType::i16         8
+    set ::dlr::ffiType::u32         9
+    set ::dlr::ffiType::i32         10
+    set ::dlr::ffiType::u64         11
+    set ::dlr::ffiType::i64         12
     set ::dlr::ffiType::ptr         14
 
     # ... and an extended map also, including those plus additional aliases 
     # corresponding to C language types on the host platform.
     # we assume unsigned ints are the same length as the signed ints.
-    set ::dlr::type::int            [get ::dlr::ffiType::sInt$::dlr::bits::int       ]
-    set ::dlr::type::short          [get ::dlr::ffiType::sInt$::dlr::bits::short     ]
-    set ::dlr::type::long           [get ::dlr::ffiType::sInt$::dlr::bits::long      ]
-    set ::dlr::type::longLong       [get ::dlr::ffiType::sInt$::dlr::bits::longLong  ]
-    set ::dlr::type::sSizeT         [get ::dlr::ffiType::sInt$::dlr::bits::sizeT     ]
-    set ::dlr::type::uInt           [get ::dlr::ffiType::uInt$::dlr::bits::int       ]
-    set ::dlr::type::uShort         [get ::dlr::ffiType::uInt$::dlr::bits::short     ]
-    set ::dlr::type::uLong          [get ::dlr::ffiType::uInt$::dlr::bits::long      ]
-    set ::dlr::type::uLongLong      [get ::dlr::ffiType::uInt$::dlr::bits::longLong  ]
-    set ::dlr::type::sizeT          [get ::dlr::ffiType::uInt$::dlr::bits::sizeT     ]
+    set ::dlr::type::int            [get ::dlr::ffiType::i$::dlr::bits::int       ]
+    set ::dlr::type::short          [get ::dlr::ffiType::i$::dlr::bits::short     ]
+    set ::dlr::type::long           [get ::dlr::ffiType::i$::dlr::bits::long      ]
+    set ::dlr::type::longLong       [get ::dlr::ffiType::i$::dlr::bits::longLong  ]
+    set ::dlr::type::sSizeT         [get ::dlr::ffiType::i$::dlr::bits::sizeT     ]
+    set ::dlr::type::uInt           [get ::dlr::ffiType::u$::dlr::bits::int       ]
+    set ::dlr::type::uShort         [get ::dlr::ffiType::u$::dlr::bits::short     ]
+    set ::dlr::type::uLong          [get ::dlr::ffiType::u$::dlr::bits::long      ]
+    set ::dlr::type::uLongLong      [get ::dlr::ffiType::u$::dlr::bits::longLong  ]
+    set ::dlr::type::sizeT          [get ::dlr::ffiType::u$::dlr::bits::sizeT     ]
     set ::dlr::type::char           {}
+        #todo: rename char to string, and add char as the 8-bit int type.
+    # copy all from ffiType.
     foreach v [info vars ::dlr::ffiType::*] {
         set  ::dlr::type::[namespace tail $v]  [get $v]
     }
@@ -194,6 +213,28 @@ proc ::dlr::allLibAliases {} {
     return [lmap ns [info vars ::dlr::libHandle::*] {namespace tail $ns}]
 }
 
+# can be used to declare new simple type based on an existing one.
+proc ::dlr::typedef {existingType  name} {
+    if {[info exists ::dlr::type::$name]} {
+        error "Redeclared simple data type: $name"
+    }
+    if { ! [info exists ::dlr::type::$existingType]} {
+        error "Simple data type doesn't exist: $existingType"
+    }
+    # FFI type codes map.
+    set ::dlr::type::$name [get ::dlr::type::${existingType}]
+    # size.
+    set ::dlr::size::$name [get ::dlr::size::${existingType}]
+    set ::dlr::bits::$name [get ::dlr::bits::${existingType}]
+    # scriptForms list.
+    set ::dlr::scriptForms::$name  [get ::dlr::scriptForms::${existingType}]
+    # converter aliases.
+    foreach form [get ::dlr::scriptForms::$name] {
+        alias  ::dlr::pack::${name}-byVal-$form  ::dlr::pack::${existingType}-byVal-$form
+        alias  ::dlr::unpack::${name}-byVal-$form  ::dlr::unpack::${existingType}-byVal-$form
+    }
+}
+
 # getter/setter for the refreshMeta boolean flag.
 # this determines whether metadata and wrapper scripts will be regenerated (and cached again)
 # when function and type declarations are processed.
@@ -242,6 +283,13 @@ proc ::dlr::validateScriptForm {type fullType scriptForm} {
     if {$scriptForm ni [get ::dlr::scriptForms::$type]} {
         error "Invalid scriptForm was given."
     }        
+}
+
+proc ::dlr::sizeOf {type} {
+    if {[isStructType $type]} {
+        return [get [namespace parent $type]::size]
+    }
+    return [get ::dlr::size::[namespace tail $type]]
 }
 
 # return the first portion of structTypeName, which is the qualifier for the 
@@ -325,6 +373,12 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     validateScriptForm $type $fullType $scriptForm
     set ${rQal}scriptForm  $scriptForm
     set ${rQal}unpacker  [converterName unpack $fullType byVal $scriptForm]
+    # FFI requires padding the return buffer up to sizeof(ffi_arg).
+    # on a big endian machine, that means unpacking from a higher address.
+    set ${rQal}padding 0
+    if {[sizeOf $fullType] < $::dlr::size::ffiArg && $::dlr::endian eq {be}} {
+        set ${rQal}padding  $($::dlr::size::ffiArg - [sizeOf $fullType])
+    }
     
     if [refreshMeta] {
         generateCallProc  $libAlias  $fnName
@@ -435,7 +489,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     }
     
     # unpack return value.
-    append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \] \n"
+    append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
 
     # compose "proc" command.
     set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"

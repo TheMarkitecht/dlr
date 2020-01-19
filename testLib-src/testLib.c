@@ -46,3 +46,14 @@ quadT mulByValue(const quadT st, const int factor) {
     return r;
 }
 
+// define another type.
+typedef u32 dataHandleT;
+extern dataHandleT dataHandler(dataHandleT handleP);
+dataHandleT dataHandler(dataHandleT handleP) {
+    return handleP << 4;
+}
+
+//todo: by pointer:  dataHandleT dataHandler(dataHandleT* handleP)   this had illegal writes before.
+
+
+//todo: test floating point.

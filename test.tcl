@@ -48,8 +48,7 @@ puts version=$version
 
 lassign  $::argv  metaAction  benchReps
 
-puts bits::int=$::dlr::bits::int
-puts bits::ptr=$::dlr::bits::ptr
+puts "bits::int=$::dlr::bits::int  bits::long=$::dlr::bits::long  bits::ptr=$::dlr::bits::ptr"
 
 # test local vars in pack api.
 ::dlr::pack::int-byVal-asInt   myLocal  89
@@ -67,6 +66,29 @@ if [::dlr::refreshMeta] {
     puts "detected:  name=quadT  size=[set ${sQal}size]  cOfs=[set ${mQal}c::offset]"
     assert {[set ${mQal}a::offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
     assert {[set ${mQal}c::type] == {::dlr::type::int}}
+}
+
+# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
+# difference is under 1%, far less than the background noise from the OS multitasking.
+if {$benchReps ne {}} {
+    set benchReps $(int($benchReps))
+    alias  strtol  ::dlr::lib::testLib::strtolTest::call
+    set str 905
+    set endP 0
+    bench fullWrap $($benchReps / 10) {
+        strtol  $str  endP  10
+    }
+    set endP $::dlr::null
+    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
+    bench pack3 $($benchReps / 10) {   
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
+        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
+        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
+    }
+    bench callToNative $benchReps {
+        ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
+    }
+    exit 0
 }
 
 # strtolTest test
@@ -112,27 +134,14 @@ loop attempt 0 3 {
     ::dlr::freeHeap $chunk
 }
 
-# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
-# difference is under 1%, far less than the background noise from the OS multitasking.
-if {$benchReps ne {}} {
-    set benchReps $(int($benchReps))
-    set str 905
-    set endP 0
-    bench fullWrap $($benchReps / 10) {
-        strtol  $str  endP  10
-    }
-    set endP $::dlr::null
-    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
-    bench pack3 $($benchReps / 10) {   
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
-        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
-    }
-    bench callToNative $benchReps {
-        ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
-    }
+# dataHandler test
+alias  dataHandler  ::dlr::lib::testLib::dataHandler::call
+loop attempt 2 5 {
+    set handle [dataHandler $attempt]
+    puts "attempt=$attempt  handle=[format 0x%x $handle]"
+    assert {$handle == $attempt << 4}
 }
 
-#todo: test simple scalar types declared by libs.  alias that to an existing type in the app, outside of dlr?
-
 puts "*** ALL TESTS PASS ***"
+
+
