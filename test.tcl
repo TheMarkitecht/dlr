@@ -141,6 +141,13 @@ loop attempt 2 5 {
     puts "attempt=$attempt  handle=[format 0x%x $handle]"
     assert {$handle == $attempt << 4}
 }
+alias  dataHandlerPtr  ::dlr::lib::testLib::dataHandlerPtr::call
+loop attempt 2 5 {
+    set h $attempt
+    set handle [dataHandlerPtr h]
+    assert {$handle == $attempt << 4}
+    assert {$h == $attempt << 4}
+}
 
 puts "*** ALL TESTS PASS ***"
 

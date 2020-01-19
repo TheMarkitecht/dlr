@@ -51,6 +51,10 @@ declareCallToNative  applyScript  testLib  {quadT asList}  mulByValue  {
 # ############ dataHandler and its types ######################################
 typedef  u32  dataHandleT
 declareCallToNative  applyScript  testLib  {dataHandleT asInt}  dataHandler  {
-    {in     byVal   dataHandleT    handleP     asInt}
+    {in     byVal   dataHandleT    handle     asInt}
+}
+
+declareCallToNative  applyScript  testLib  {dataHandleT asInt}  dataHandlerPtr  {
+    {inOut     byPtr   dataHandleT    handleP     asInt}
 }
 
