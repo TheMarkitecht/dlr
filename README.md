@@ -19,7 +19,7 @@ without writing any C/C++ code if you don't want to.
 ## Features of This Version:
 
 * Supports calling only one direction: from script to native code.
-* Supports struct types.
+* Supports struct types.  But not nested structs, yet.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script library.
 * Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.

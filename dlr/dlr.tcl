@@ -42,34 +42,32 @@ proc ::dlr::initDlr {} {
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
-    set ::dlr::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes]
     set ::dlr::directions           [list in out inOut]
     ::dlr::refreshMeta              0
-
-#todo: reorganize type codes and metadata of simple types, so they're not in parallel any more.  ::dlr::simple::$type::code etc.  and eliminate proc sizeof and other places that use isStructType etc. to apply special treatment to simple types.
+    set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
 
     # bit and byte lengths of simple types, for use in converters.  byte lengths are useful for
     # dlr's converters.  bit lengths are more useful for Jim's pack/unpack, but those are slower.
-    foreach typ [dict keys $::dlr::sizeOfSimpleTypes] {
-        set ::dlr::size::$typ       $::dlr::sizeOfSimpleTypes($typ)
-        set ::dlr::bits::$typ       $(8 * [get ::dlr::size::$typ])
+    foreach typ [dict keys $::dlr::native::sizeOfSimpleTypes] {
+        set ::dlr::simple::${typ}::size       $::dlr::native::sizeOfSimpleTypes($typ)
+        set ::dlr::simple::${typ}::bits       $(8 * [get ::dlr::simple::${typ}::size])
     }
     foreach size {8 16 32 64} {
         foreach sign {u i} {
-            set ::dlr::size::${sign}$size  $($size / 8)
-            set ::dlr::bits::${sign}$size  $size
+            set ::dlr::simple::${sign}${size}::size  $($size / 8)
+            set ::dlr::simple::${sign}${size}::bits  $size
         }
     }
     # we assume unsigned ints are the same length as the signed ints.
     foreach signed {char short int long longLong sSizeT} \
         unsigned {uChar uShort uInt uLong uLongLong sizeT} {
-        set ::dlr::size::$unsigned  [get ::dlr::size::$signed]
-        set ::dlr::bits::$unsigned  [get ::dlr::bits::$signed]
+        set ::dlr::simple::${unsigned}::size  [get ::dlr::simple::${signed}::size]
+        set ::dlr::simple::${unsigned}::bits  [get ::dlr::simple::${signed}::bits]
     }
-    set ::dlr::size::void  0
-    set ::dlr::bits::void  0
+    set ::dlr::simple::void::size  0
+    set ::dlr::simple::void::bits  0
 
-    # ffi type codes map.  certain types are deleted for being too vague etc.
+    # ffi type codes map.  certain types are deleted for being too vague or otherwise unusable.
     set ::dlr::ffiType::void        0
     set ::dlr::ffiType::float       2
     set ::dlr::ffiType::double      3
@@ -87,21 +85,21 @@ proc ::dlr::initDlr {} {
     # ... and an extended map also, including those plus additional aliases 
     # corresponding to C language types on the host platform.
     # we assume unsigned ints are the same length as the signed ints.
-    set ::dlr::type::int            [get ::dlr::ffiType::i$::dlr::bits::int       ]
-    set ::dlr::type::short          [get ::dlr::ffiType::i$::dlr::bits::short     ]
-    set ::dlr::type::long           [get ::dlr::ffiType::i$::dlr::bits::long      ]
-    set ::dlr::type::longLong       [get ::dlr::ffiType::i$::dlr::bits::longLong  ]
-    set ::dlr::type::sSizeT         [get ::dlr::ffiType::i$::dlr::bits::sizeT     ]
-    set ::dlr::type::uInt           [get ::dlr::ffiType::u$::dlr::bits::int       ]
-    set ::dlr::type::uShort         [get ::dlr::ffiType::u$::dlr::bits::short     ]
-    set ::dlr::type::uLong          [get ::dlr::ffiType::u$::dlr::bits::long      ]
-    set ::dlr::type::uLongLong      [get ::dlr::ffiType::u$::dlr::bits::longLong  ]
-    set ::dlr::type::sizeT          [get ::dlr::ffiType::u$::dlr::bits::sizeT     ]
-    set ::dlr::type::char           {}
+    set ::dlr::simple::int::ffiTypeCode            [get ::dlr::ffiType::i$::dlr::simple::int::bits       ]
+    set ::dlr::simple::short::ffiTypeCode          [get ::dlr::ffiType::i$::dlr::simple::short::bits     ]
+    set ::dlr::simple::long::ffiTypeCode           [get ::dlr::ffiType::i$::dlr::simple::long::bits      ]
+    set ::dlr::simple::longLong::ffiTypeCode       [get ::dlr::ffiType::i$::dlr::simple::longLong::bits  ]
+    set ::dlr::simple::sSizeT::ffiTypeCode         [get ::dlr::ffiType::i$::dlr::simple::sizeT::bits     ]
+    set ::dlr::simple::uInt::ffiTypeCode           [get ::dlr::ffiType::u$::dlr::simple::int::bits       ]
+    set ::dlr::simple::uShort::ffiTypeCode         [get ::dlr::ffiType::u$::dlr::simple::short::bits     ]
+    set ::dlr::simple::uLong::ffiTypeCode          [get ::dlr::ffiType::u$::dlr::simple::long::bits      ]
+    set ::dlr::simple::uLongLong::ffiTypeCode      [get ::dlr::ffiType::u$::dlr::simple::longLong::bits  ]
+    set ::dlr::simple::sizeT::ffiTypeCode          [get ::dlr::ffiType::u$::dlr::simple::sizeT::bits     ]
+    set ::dlr::simple::char::ffiTypeCode           [get ::dlr::ffiType::i8]
         #todo: rename char to string, and avoid using char for anything.  its intent is too vague.
     # copy all from ffiType.
     foreach v [info vars ::dlr::ffiType::*] {
-        set  ::dlr::type::[namespace tail $v]  [get $v]
+        set  ::dlr::simple::[namespace tail $v]::ffiTypeCode  [get $v]
     }
 
     # aliases to pass through to native implementations of certain dlr system commands.
@@ -125,23 +123,23 @@ proc ::dlr::initDlr {} {
     # to another native function, without any intermediate conversions, increasing speed.
     #
     # most simple types are integer scalars, so blanket all types with asInt.
-    foreach v [info vars ::dlr::type::*] {
-        set ::dlr::scriptForms::[namespace tail $v]  [list asInt asNative]
+    foreach v [info vars ::dlr::simple::*::ffiTypeCode] {
+        set [namespace parent $v]::scriptForms  [list asInt asNative]
     }
     # overwrite that with a few special cases such as floating point and struct.
-    set ::dlr::scriptForms::struct      [list asList asDict asNative]
+    set ::dlr::struct::scriptForms              [list asList asDict asNative]
     foreach typ {float double longDouble} {
-        set ::dlr::scriptForms::$typ  [list asDouble asNative]
+        set ::dlr::simple::${typ}::scriptForms  [list asDouble asNative]
     }
     #todo: asString implies some automatic encoding/decoding as needed.  this really could say "asNative" instead, for now, until encoding features are available.  but "asNative" implies you can't directly use it in scripts.  but in fact you can.
-    set ::dlr::scriptForms::char        [list asString]
-    set ::dlr::scriptForms::void        [list]
+    set ::dlr::simple::char::scriptForms        [list asString]
+    set ::dlr::simple::void::scriptForms        [list]
 
     # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
     # types with length unspecified in C use converters for fixed-size types.
     foreach conversion {pack unpack} {
         foreach type {int short long longLong sSizeT uInt uShort uLong uLongLong sizeT ptr} {
-            alias  ::dlr::${conversion}::${type}-byVal-asInt        ::dlr::${conversion}::u[get ::dlr::bits::$type]-byVal-asInt
+            alias  ::dlr::simple::${type}::${conversion}-byVal-asInt        ::dlr::simple::u[get ::dlr::simple::${type}::bits]::${conversion}-byVal-asInt
         }
     }
 
@@ -151,20 +149,20 @@ proc ::dlr::initDlr {} {
             # these work the same for both signed and unsigned due to machines using 2's complement representation.
             #todo: verify with negative numbers.
             foreach sign {u i} {
-                alias  ::dlr::${conversion}::${sign}${size}-byVal-asInt  ::dlr::native::${conversion}-${size}-byVal-asInt
+                alias  ::dlr::simple::${sign}${size}::${conversion}-byVal-asInt  ::dlr::native::u${size}-${conversion}-byVal-asInt
             }
         }
-        alias  ::dlr::${conversion}::float-byVal-asDouble       ::dlr::native::${conversion}-float-byVal-asDouble
-        alias  ::dlr::${conversion}::double-byVal-asDouble      ::dlr::native::${conversion}-double-byVal-asDouble
-        alias  ::dlr::${conversion}::longDouble-byVal-asDouble  ::dlr::native::${conversion}-longDouble-byVal-asDouble
-        alias  ::dlr::${conversion}::char-byVal-asString        ::dlr::native::${conversion}-char-byVal-asString
+        alias  ::dlr::simple::float::${conversion}-byVal-asDouble       ::dlr::native::float-${conversion}-byVal-asDouble
+        alias  ::dlr::simple::double::${conversion}-byVal-asDouble      ::dlr::native::double-${conversion}-byVal-asDouble
+        alias  ::dlr::simple::longDouble::${conversion}-byVal-asDouble  ::dlr::native::longDouble-${conversion}-byVal-asDouble
+        alias  ::dlr::simple::char::${conversion}-byVal-asString        ::dlr::native::char-${conversion}-byVal-asString
     }
 
     # pointer support
-    set ::dlr::ptrFmt               0x%0$($::dlr::bits::ptr / 4)X
+    set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
     # scripts can use $::dlr::null instead of packing their own nulls.
-    # this is typically not needed, but might be useful to speed up handwritten converters.
-    ::dlr::pack::ptr-byVal-asInt  ::dlr::null  0 
+    # packed nulls are typically not needed, but might be useful to speed up handwritten converters.
+    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0 
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     #todo: test that, for passing a null char* in and out of native func.
     set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
@@ -206,23 +204,23 @@ proc ::dlr::allLibAliases {} {
 
 # can be used to declare new simple type based on an existing one.
 proc ::dlr::typedef {existingType  name} {
-    if {[info exists ::dlr::type::$name]} {
+    if {[info exists ::dlr::simple::${name}::ffiTypeCode]} {
         error "Redeclared simple data type: $name"
     }
-    if { ! [info exists ::dlr::type::$existingType]} {
+    if { ! [info exists ::dlr::simple::${existingType}::ffiTypeCode]} {
         error "Simple data type doesn't exist: $existingType"
     }
     # FFI type codes map.
-    set ::dlr::type::$name [get ::dlr::type::${existingType}]
+    set ::dlr::simple::${name}::ffiTypeCode [get ::dlr::simple::${existingType}::ffiTypeCode]
     # size.
-    set ::dlr::size::$name [get ::dlr::size::${existingType}]
-    set ::dlr::bits::$name [get ::dlr::bits::${existingType}]
+    set ::dlr::simple::${name}::size [get ::dlr::simple::${existingType}::size]
+    set ::dlr::simple::${name}::bits [get ::dlr::simple::${existingType}::bits]
     # scriptForms list.
-    set ::dlr::scriptForms::$name  [get ::dlr::scriptForms::${existingType}]
+    set ::dlr::simple::${name}::scriptForms  [get ::dlr::simple::${existingType}::scriptForms]
     # converter aliases.
-    foreach form [get ::dlr::scriptForms::$name] {
-        alias  ::dlr::pack::${name}-byVal-$form  ::dlr::pack::${existingType}-byVal-$form
-        alias  ::dlr::unpack::${name}-byVal-$form  ::dlr::unpack::${existingType}-byVal-$form
+    foreach form [get ::dlr::simple::${name}::scriptForms] {
+        alias  ::dlr::simple::${name}::pack-byVal-$form    ::dlr::simple::${existingType}::pack-byVal-$form
+        alias  ::dlr::simple::${name}::unpack-byVal-$form  ::dlr::simple::${existingType}::unpack-byVal-$form
     }
 }
 
@@ -245,21 +243,21 @@ proc ::dlr::isStructType {typeVarName} {
 # qualify any unqualified type name.
 # a name already qualified is returned as-is.
 # others are tested to see if they exist in the given library.  if so, return that one.
-# others are tested to see if they're one of the simple types in ::dlr::type.  if so, return that one.
+# others are tested to see if they're one of the simple types in ::dlr::simple.  if so, return that one.
 # otherwise, notFoundAction is implemented.  that can be "error" (the default),
 # or an empty string to ignore the problem and return an empty string instead.
-# structs are always resolved to the name of their metablob variable, ready for passing to dlrNative.
+# after qualifyTypeName, caller may use selectTypeMeta to fetch the required info for dlrNative.
 proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     if {[string match *::* $typeVarName]} {
         return $typeVarName
     } 
     # here we assume that libs describe only structs, never simple types.
-    set meta ::dlr::lib::${libAlias}::struct::${typeVarName}::meta
-    if {[info exists $meta]} {
-        return $meta
+    set sType ::dlr::lib::${libAlias}::struct::${typeVarName}
+    if {[info exists ${sType}::meta]} {
+        return $sType
     }
-    if {[info exists ::dlr::type::$typeVarName]} {
-        return ::dlr::type::$typeVarName
+    if {[info exists ::dlr::simple::${typeVarName}::ffiTypeCode]} {
+        return ::dlr::simple::$typeVarName
     }
     if {$notFoundAction eq {error}} {
         error "Unqualified type name could not be resolved: $typeVarName"
@@ -267,23 +265,23 @@ proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     return {}
 }
 
-proc ::dlr::validateScriptForm {type fullType scriptForm} {
-    if {$fullType eq {::dlr::type::void}} {
+proc ::dlr::selectTypeMeta {type} {
+    if {[isStructType $type]} {
+        return ${type}::meta ;# return string name of variable holding struct type's metadata blob.
+    }
+    return ${type}::ffiTypeCode ;# return integer ffiTypeCode.
+}
+
+proc ::dlr::validateScriptForm {fullType scriptForm} {
+    if {$fullType eq {::dlr::simple::void}} {
         return 
     }
     if {[isStructType $fullType]} {
-        set type struct
+        set fullType ::dlr::struct
     }
-    if {$scriptForm ni [get ::dlr::scriptForms::$type]} {
+    if {$scriptForm ni [get ${fullType}::scriptForms]} {
         error "Invalid scriptForm was given."
     }        
-}
-
-proc ::dlr::sizeOf {type} {
-    if {[isStructType $type]} {
-        return [get [namespace parent $type]::size]
-    }
-    return [get ::dlr::size::[namespace tail $type]]
 }
 
 # return the first portion of structTypeName, which is the qualifier for the 
@@ -304,7 +302,7 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
     if {[isStructType $fullType]} {
         return [structQal $fullType]::${conversion}-${passMethod}-$scriptForm
     }
-    return ::dlr::${conversion}::[namespace tail $fullType]-${passMethod}-$scriptForm
+    return ${fullType}::${conversion}-${passMethod}-$scriptForm
 }
 
 # at each declaration, if scriptAction is applyScript, dlr source's the generated 
@@ -318,7 +316,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     # memorize metadata for parms.
     set order [list]
     set orderNative [list]
-    set types [list] 
+    set typesMeta [list] 
     foreach parmDesc $parmsDescrip {
         lassign $parmDesc  dir  passMethod  type  name  scriptForm
         set pQal ${fQal}parm::${name}::
@@ -338,9 +336,10 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
         
         set fullType [qualifyTypeName $type $libAlias]
         set ${pQal}type  $fullType
-        lappend types $( $passMethod eq {byPtr} ? {::dlr::type::ptr} : $fullType )
+        set ${pQal}passType $( $passMethod eq {byPtr} ? {::dlr::simple::ptr} : $fullType )
+        lappend typesMeta [selectTypeMeta [get ${pQal}passType]]
 
-        validateScriptForm $type $fullType $scriptForm
+        validateScriptForm $fullType $scriptForm
         set ${pQal}scriptForm  $scriptForm
 
         # this version uses only byVal converters, and wraps them in script for byPtr.
@@ -364,15 +363,16 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     lassign $returnTypeDescrip  type scriptForm
     set fullType [qualifyTypeName $type $libAlias]
     set ${rQal}type  $fullType
-    validateScriptForm $type $fullType $scriptForm
+    validateScriptForm $fullType $scriptForm
     set ${rQal}scriptForm  $scriptForm
     set ${rQal}unpacker  [converterName unpack $fullType byVal $scriptForm]
     # FFI requires padding the return buffer up to sizeof(ffi_arg).
     # on a big endian machine, that means unpacking from a higher address.
     set ${rQal}padding 0
-    if {[sizeOf $fullType] < $::dlr::size::ffiArg && $::dlr::endian eq {be}} {
-        set ${rQal}padding  $($::dlr::size::ffiArg - [sizeOf $fullType])
+    if {[get ${fullType}::size] < $::dlr::simple::ffiArg::size && $::dlr::endian eq {be}} {
+        set ${rQal}padding  $($::dlr::simple::ffiArg::size - [get ${fullType}::size])
     }
+    set rMeta [selectTypeMeta $fullType]
     
     if [refreshMeta] {
         generateCallProc  $libAlias  $fnName
@@ -390,7 +390,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
     # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
     prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
-        ${rQal}native  [get ${rQal}type]  $orderNative  $types  
+        ${rQal}native  $rMeta  $orderNative  $typesMeta  
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
@@ -452,7 +452,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
             append body "$packer  $targetNativeName  \$$parmBare \n"
-            append body "::dlr::pack::ptr-byVal-asInt  $parmNative  \[ ::dlr::addrOf  $targetNativeName \] \n"
+            append body "::dlr::simple::ptr::pack-byVal-asInt  $parmNative  \[ ::dlr::addrOf  $targetNativeName \] \n"
         } else {
             append body "$packer  $parmNative  \$$parmBare \n"
         }
@@ -460,7 +460,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     
     # call native function.
     set rQal ${fQal}return::
-    if {[get ${rQal}type] eq {::dlr::type::void}} {
+    if {[get ${rQal}type] eq {::dlr::simple::void}} {
         append body "::dlr::callToNative  ${fQal}meta \n"
     } else {
         append body "set  ${rQal}native  \[ ::dlr::callToNative  ${fQal}meta \] \n"
@@ -487,7 +487,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     }
     
     # unpack return value.
-    if {[get ${rQal}type] ne {::dlr::type::void}} {
+    if {[get ${rQal}type] ne {::dlr::simple::void}} {
         append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
     }
 
@@ -533,13 +533,13 @@ proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
         
         lappend ${sQal}memberOrder $mName
         
-        if {"::dlr::type::$mType" ni [info vars ::dlr::type::*]} {
+        if { ! [info exists ::dlr::simple::${mType}::ffiTypeCode]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
         }
-        set mFullType ::dlr::type::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
+        set mFullType ::dlr::simple::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
         set ${mQal}type $mFullType
         
-        validateScriptForm $mType $mFullType $mScriptForm        
+        validateScriptForm $mFullType $mScriptForm        
         set ${mQal}scriptForm $mScriptForm
         
         set ${mQal}packer    [converterName   pack $mFullType byVal $mScriptForm]
@@ -563,11 +563,11 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
     #todo: support nested structs.
     set ${sQal}size $sDic(size)
     set membersRemain [dict keys $sDic(members)]
-    set typeVars [list]
+    set typeMeta [list]
     foreach mName [get ${sQal}memberOrder] {
         set mQal ${sQal}member::${mName}::
         set mFullType [get ${mQal}type]
-        lappend typeVars $mFullType
+        lappend typeMeta [selectTypeMeta $mFullType]
         
         set ix [lsearch $membersRemain $mName]
         if {$ix < 0} {
@@ -578,7 +578,7 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
         set mDic [dict get $sDic members $mName]
         set ${mQal}offset $mDic(offset)
         
-        if {$mDic(size) != [get ::dlr::size::[namespace tail $mFullType]]} {
+        if {$mDic(size) != [get ${mFullType}::size]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
         }
     }
@@ -588,7 +588,7 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
     }
     
     # prep FFI type record for this structure.  do this last of all.
-    ::dlr::prepStructType  ${sQal}meta  $typeVars   
+    ::dlr::prepStructType  ${sQal}meta  $typeMeta   
 }
 
 #todo: documentation similar to generateCallProc

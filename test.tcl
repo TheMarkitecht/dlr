@@ -48,11 +48,11 @@ puts version=$version
 
 lassign  $::argv  metaAction  benchReps
 
-puts "bits::int=$::dlr::bits::int  bits::long=$::dlr::bits::long  bits::ptr=$::dlr::bits::ptr"
+puts "int::bits=$::dlr::simple::int::bits  long::bits=$::dlr::simple::long::bits  ptr::bits=$::dlr::simple::ptr::bits"
 
 # test local vars in pack api.
-::dlr::pack::int-byVal-asInt   myLocal  89
-assert {[::dlr::unpack::int-byVal-asInt  $myLocal] == 89}
+::dlr::simple::int::pack-byVal-asInt   myLocal  89
+assert {[::dlr::simple::int::unpack-byVal-asInt  $myLocal] == 89}
 
 # load the library binding for testLib.  
 set metaAction [lindex $::argv 0]
@@ -65,7 +65,7 @@ if [::dlr::refreshMeta] {
     set mQal ${sQal}member::
     puts "detected:  name=quadT  size=[set ${sQal}size]  cOfs=[set ${mQal}c::offset]"
     assert {[set ${mQal}a::offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
-    assert {[set ${mQal}c::type] == {::dlr::type::int}}
+    assert {[set ${mQal}c::type] == {::dlr::simple::int}}
 }
 # dump the metadata structure in ram.  this is big.
 #puts [join [lsort [info vars ::dlr::*]] \n]
@@ -81,11 +81,11 @@ if {$benchReps ne {}} {
         strtol  $str  endP  10
     }
     set endP $::dlr::null
-    ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
+    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
     bench pack3 $($benchReps / 10) {   
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
-        ::dlr::pack::ptr-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
-        ::dlr::pack::int-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
+        ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
+        ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
+        ::dlr::simple::int::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
     }
     bench callToNative $benchReps {
         ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
@@ -114,7 +114,7 @@ loop attempt 0 3 {
     assert {$endPmasked == $strPmasked}
 
     # verify "constant" dlr::null was not overwritten.  that could have happened in older versions of this test.
-    assert {[::dlr::unpack::ptr-byVal-asInt $::dlr::null] == 0}
+    assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::null] == 0}
 }
 
 # mulByValue test
