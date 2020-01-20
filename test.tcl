@@ -67,6 +67,8 @@ if [::dlr::refreshMeta] {
     assert {[set ${mQal}a::offset] == 0} ;# all the other offsets beyond this first one depend on the compiler's word size and structure packing behavior.
     assert {[set ${mQal}c::type] == {::dlr::type::int}}
 }
+# dump the metadata structure in ram.  this is big.
+#puts [join [lsort [info vars ::dlr::*]] \n]
 
 # speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
 # difference is under 1%, far less than the background noise from the OS multitasking.
@@ -157,6 +159,26 @@ loop attempt 2 5 {
     assert {$h == $attempt << 4}
 }
 
-puts "*** ALL TESTS PASS ***"
+# floatSquare test
+alias  floatSquare  ::dlr::lib::testLib::floatSquare::call
+loop attempt 2 5 {
+    set stuff $($attempt + 0.1)
+    set correct $($stuff * $stuff)
+    set sqr [floatSquare $stuff $stuff]
+    puts [format {stuff=%0.2f  sqr=%0.2f} $stuff $sqr]
+    assert {abs( $sqr - $correct) < 0.01}
+}
 
+alias  floatSquarePtr  ::dlr::lib::testLib::floatSquarePtr::call
+loop attempt 2 5 {
+    set stuff $($attempt + 0.1)
+    set old $stuff
+    set correct $($stuff * $stuff)
+    floatSquarePtr stuff
+    #puts [format {stuff=%0.2f  sqr=%0.2f} $old $stuff]
+    assert {abs( $stuff - $correct) < 0.1}
+}
+
+
+puts "*** ALL TESTS PASS ***"
 

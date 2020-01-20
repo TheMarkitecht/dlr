@@ -130,7 +130,7 @@ proc ::dlr::initDlr {} {
     }
     # overwrite that with a few special cases such as floating point and struct.
     set ::dlr::scriptForms::struct      [list asList asDict asNative]
-    foreach typ {float double longdouble} {
+    foreach typ {float double longDouble} {
         set ::dlr::scriptForms::$typ  [list asDouble asNative]
     }
     #todo: asString implies some automatic encoding/decoding as needed.  this really could say "asNative" instead, for now, until encoding features are available.  but "asNative" implies you can't directly use it in scripts.  but in fact you can.
@@ -140,22 +140,9 @@ proc ::dlr::initDlr {} {
     # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
     # types with length unspecified in C use converters for fixed-size types.
     foreach conversion {pack unpack} {
-        # signed ints.
-        alias  ::dlr::${conversion}::int-byVal-asInt        ::dlr::${conversion}::i${::dlr::bits::int}-byVal-asInt
-        alias  ::dlr::${conversion}::short-byVal-asInt      ::dlr::${conversion}::i${::dlr::bits::short}-byVal-asInt
-        alias  ::dlr::${conversion}::long-byVal-asInt       ::dlr::${conversion}::i${::dlr::bits::long}-byVal-asInt
-        alias  ::dlr::${conversion}::longLong-byVal-asInt   ::dlr::${conversion}::i${::dlr::bits::longLong}-byVal-asInt
-        alias  ::dlr::${conversion}::sSizeT-byVal-asInt     ::dlr::${conversion}::i${::dlr::bits::sizeT}-byVal-asInt
-                                                                                  
-        # unsigned ints.  we assume these are the same length as the signed ints. 
-        alias  ::dlr::${conversion}::uInt-byVal-asInt       ::dlr::${conversion}::u${::dlr::bits::int}-byVal-asInt
-        alias  ::dlr::${conversion}::uShort-byVal-asInt     ::dlr::${conversion}::u${::dlr::bits::short}-byVal-asInt
-        alias  ::dlr::${conversion}::uLong-byVal-asInt      ::dlr::${conversion}::u${::dlr::bits::long}-byVal-asInt
-        alias  ::dlr::${conversion}::uLongLong-byVal-asInt  ::dlr::${conversion}::u${::dlr::bits::longLong}-byVal-asInt
-        alias  ::dlr::${conversion}::sizeT-byVal-asInt      ::dlr::${conversion}::u${::dlr::bits::sizeT}-byVal-asInt
-
-        # pointer
-        alias  ::dlr::${conversion}::ptr-byVal-asInt        ::dlr::${conversion}::u${::dlr::bits::ptr}-byVal-asInt
+        foreach type {int short long longLong sSizeT uInt uShort uLong uLongLong sizeT ptr} {
+            alias  ::dlr::${conversion}::${type}-byVal-asInt        ::dlr::${conversion}::u[get ::dlr::bits::$type]-byVal-asInt
+        }
     }
 
     # aliases for converters written in C and provided by dlrNative by default.
@@ -167,7 +154,10 @@ proc ::dlr::initDlr {} {
                 alias  ::dlr::${conversion}::${sign}${size}-byVal-asInt  ::dlr::native::${conversion}-${size}-byVal-asInt
             }
         }
-        alias  ::dlr::${conversion}::char-byVal-asString      ::dlr::native::${conversion}-char-byVal-asString
+        alias  ::dlr::${conversion}::float-byVal-asDouble       ::dlr::native::${conversion}-float-byVal-asDouble
+        alias  ::dlr::${conversion}::double-byVal-asDouble      ::dlr::native::${conversion}-double-byVal-asDouble
+        alias  ::dlr::${conversion}::longDouble-byVal-asDouble  ::dlr::native::${conversion}-longDouble-byVal-asDouble
+        alias  ::dlr::${conversion}::char-byVal-asString        ::dlr::native::${conversion}-char-byVal-asString
     }
 
     # pointer support

@@ -624,12 +624,21 @@ int packerSetup_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[], j
     return JIM_OK;
 }
 
+int packerSetup_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[], double* dataP) {
+    *dataP = 0;
+    if (Jim_GetDouble(itp, objv[pk_unpackedDataIX], dataP) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected data value double-precision float but got other data.", -1);
+        return JIM_ERR;
+    }    
+    return JIM_OK;
+}
+
 int pack_8_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u8* buf = NULL;
     if (packerSetup_byVal(itp, objc, objv, sizeof(u8), (void**)&buf) != JIM_OK) return JIM_ERR;
     jim_wide data; 
     if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
-    *(u8*)buf = (u8)data;
+    *buf = (u8)data;
     return JIM_OK;
 }
 
@@ -638,7 +647,7 @@ int pack_16_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     if (packerSetup_byVal(itp, objc, objv, sizeof(u16), (void**)&buf) != JIM_OK) return JIM_ERR;
     jim_wide data; 
     if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
-    *(u16*)buf = (u16)data;
+    *buf = (u16)data;
     return JIM_OK;
 }
 
@@ -647,7 +656,7 @@ int pack_32_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     if (packerSetup_byVal(itp, objc, objv, sizeof(u32), (void**)&buf) != JIM_OK) return JIM_ERR;
     jim_wide data; 
     if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
-    *(u32*)buf = (u32)data;
+    *buf = (u32)data;
     return JIM_OK;
 }
 
@@ -656,7 +665,34 @@ int pack_64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     if (packerSetup_byVal(itp, objc, objv, sizeof(u64), (void**)&buf) != JIM_OK) return JIM_ERR;
     jim_wide data; 
     if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
-    *(u64*)buf = (u64)data;
+    *buf = (u64)data;
+    return JIM_OK;
+}
+
+int pack_double_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    double* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(double), (void**)&buf) != JIM_OK) return JIM_ERR;
+    double data; 
+    if (packerSetup_byVal_asDouble(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (double)data;
+    return JIM_OK;
+}
+
+int pack_float_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    float* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(float), (void**)&buf) != JIM_OK) return JIM_ERR;
+    double data; 
+    if (packerSetup_byVal_asDouble(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (float)data;
+    return JIM_OK;
+}
+
+int pack_longDouble_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    long double* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(long double), (void**)&buf) != JIM_OK) return JIM_ERR;
+    double data; 
+    if (packerSetup_byVal_asDouble(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (long double)data;
     return JIM_OK;
 }
 
@@ -750,6 +786,27 @@ int unpack_64_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
+int unpack_float_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    float* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(float), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResult(itp, Jim_NewDoubleObj(itp, (double)*buf));
+    return JIM_OK;
+}
+
+int unpack_double_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    double* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(double), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResult(itp, Jim_NewDoubleObj(itp, (double)*buf));
+    return JIM_OK;
+}
+
+int unpack_longDouble_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    long double* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(long double), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResult(itp, Jim_NewDoubleObj(itp, (double)*buf));
+    return JIM_OK;
+}
+
 //todo: add a test for this.
 int unpack_char_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     char* buf = NULL;
@@ -784,12 +841,18 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::pack-16-byVal-asInt", pack_16_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::pack-32-byVal-asInt", pack_32_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::pack-64-byVal-asInt", pack_64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-float-byVal-asDouble", pack_float_byVal_asDouble, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-double-byVal-asDouble", pack_double_byVal_asDouble, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-longDouble-byVal-asDouble", pack_longDouble_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::pack-char-byVal-asString", pack_char_byVal_asString, NULL, NULL);
 
     Jim_CreateCommand(itp, "dlr::native::unpack-8-byVal-asInt",  unpack_8_byVal_asInt,  NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::unpack-16-byVal-asInt", unpack_16_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::unpack-32-byVal-asInt", unpack_32_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::unpack-64-byVal-asInt", unpack_64_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-float-byVal-asDouble", unpack_float_byVal_asDouble, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-double-byVal-asDouble", unpack_double_byVal_asDouble, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::unpack-longDouble-byVal-asDouble", unpack_longDouble_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::unpack-char-byVal-asString", unpack_char_byVal_asString, NULL, NULL);
 
     return JIM_OK;

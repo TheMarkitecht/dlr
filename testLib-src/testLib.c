@@ -64,5 +64,13 @@ void dataHandlerVoid(dataHandleT* handleP) {
     *handleP = *handleP << 4;
 }
 
+// floating point.
+extern float floatSquare(double stuff, long double longStuff);
+float floatSquare(double stuff, long double longStuff) {
+    return (float)(stuff * longStuff);
+}
 
-//todo: test floating point.
+extern void floatSquarePtr(double* stuff);
+void floatSquarePtr(double* stuff) {
+    *stuff = *stuff * *stuff;
+}

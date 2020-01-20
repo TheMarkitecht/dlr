@@ -62,3 +62,13 @@ declareCallToNative  applyScript  testLib  {void}  dataHandlerVoid  {
     {inOut     byPtr   dataHandleT    handleP     asInt}
 }
 
+# ############ floatSquare and its types ######################################
+declareCallToNative  applyScript  testLib  {float asDouble}  floatSquare  {
+    {in     byVal   double      stuff       asDouble}
+    {in     byVal   longDouble  longStuff   asDouble}
+}
+
+declareCallToNative  applyScript  testLib  {void}  floatSquarePtr  {
+    {inOut     byPtr   double    stuff     asDouble}
+}
+
