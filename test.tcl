@@ -120,12 +120,12 @@ loop attempt 0 3 {
 # mulByValue test
 alias  mulByValue  ::dlr::lib::testLib::mulByValue::call
 loop attempt 2 5 {
-    lassign [mulByValue {10 11 12 13} $attempt] a b c d
-    assert {$a == 10 * $attempt}
-    assert {$b == 11 * $attempt}
-    assert {$c == 12 * $attempt}
-    assert {$d == 13 * $attempt}
+    lassign [mulByValue {10 11 12 13} -$attempt] a b c d
     puts quadT.d=$d
+    assert {$a == -10 * $attempt}
+    assert {$b == -11 * $attempt}
+    assert {$c == -12 * $attempt}
+    assert {$d == -13 * $attempt}
 }
 alias  mulDict  ::dlr::lib::testLib::mulDict::call
 loop attempt 2 5 {

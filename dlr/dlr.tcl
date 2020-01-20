@@ -135,27 +135,30 @@ proc ::dlr::initDlr {} {
     set ::dlr::simple::char::scriptForms        [list asString]
     set ::dlr::simple::void::scriptForms        [list]
 
-    # converter aliases for certain types.  aliases add speed by avoiding a dispatch step in script.
-    # types with length unspecified in C use converters for fixed-size types.
-    foreach conversion {pack unpack} {
-        foreach type {int short long longLong sSizeT uInt uShort uLong uLongLong sizeT ptr} {
-            alias  ::dlr::simple::${type}::${conversion}-byVal-asInt        ::dlr::simple::u[get ::dlr::simple::${type}::bits]::${conversion}-byVal-asInt
-        }
-    }
-
     # aliases for converters written in C and provided by dlrNative by default.
+    # aliases add speed by avoiding a dispatch step in script.
     foreach conversion {pack unpack} {
         foreach size {8 16 32 64} {
-            # these work the same for both signed and unsigned due to machines using 2's complement representation.
-            #todo: verify with negative numbers.
             foreach sign {u i} {
-                alias  ::dlr::simple::${sign}${size}::${conversion}-byVal-asInt  ::dlr::native::u${size}-${conversion}-byVal-asInt
+                alias  ::dlr::simple::${sign}${size}::${conversion}-byVal-asInt  ::dlr::native::${sign}${size}-${conversion}-byVal-asInt
             }
         }
         alias  ::dlr::simple::float::${conversion}-byVal-asDouble       ::dlr::native::float-${conversion}-byVal-asDouble
         alias  ::dlr::simple::double::${conversion}-byVal-asDouble      ::dlr::native::double-${conversion}-byVal-asDouble
         alias  ::dlr::simple::longDouble::${conversion}-byVal-asDouble  ::dlr::native::longDouble-${conversion}-byVal-asDouble
         alias  ::dlr::simple::char::${conversion}-byVal-asString        ::dlr::native::char-${conversion}-byVal-asString
+    }
+
+    # converter aliases for certain types.  
+    # types with length unspecified in C use converters for fixed-size types.
+    # the fixed size is selected according to the actual host at compile time.
+    foreach conversion {pack unpack} {
+        foreach type {int short long longLong sSizeT} {
+            alias  ::dlr::simple::${type}::${conversion}-byVal-asInt        ::dlr::simple::i[get ::dlr::simple::${type}::bits]::${conversion}-byVal-asInt
+        }
+        foreach type {uInt uShort uLong uLongLong sizeT ptr} {
+            alias  ::dlr::simple::${type}::${conversion}-byVal-asInt        ::dlr::simple::u[get ::dlr::simple::${type}::bits]::${conversion}-byVal-asInt
+        }
     }
 
     # pointer support

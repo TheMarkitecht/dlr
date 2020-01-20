@@ -669,6 +669,42 @@ int u64_pack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
+int i8_pack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i8* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(i8), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (i8)data;
+    return JIM_OK;
+}
+
+int i16_pack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i16* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(i16), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (i16)data;
+    return JIM_OK;
+}
+
+int i32_pack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i32* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(i32), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (i32)data;
+    return JIM_OK;
+}
+
+int i64_pack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i64* buf = NULL;
+    if (packerSetup_byVal(itp, objc, objv, sizeof(i64), (void**)&buf) != JIM_OK) return JIM_ERR;
+    jim_wide data; 
+    if (packerSetup_byVal_asInt(itp, objc, objv, &data) != JIM_OK) return JIM_ERR;
+    *buf = (i64)data;
+    return JIM_OK;
+}
+
 int double_pack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     double* buf = NULL;
     if (packerSetup_byVal(itp, objc, objv, sizeof(double), (void**)&buf) != JIM_OK) return JIM_ERR;
@@ -786,6 +822,34 @@ int u64_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
+int i8_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i8* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(i8), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
+    return JIM_OK;
+}
+
+int i16_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i16* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(i16), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
+    return JIM_OK;
+}
+
+int i32_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i32* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(i32), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
+    return JIM_OK;
+}
+
+int i64_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    i64* buf = NULL;
+    if (unpackerSetup_byVal(itp, objc, objv, sizeof(i64), (void**)&buf) != JIM_OK) return JIM_ERR;
+    Jim_SetResultInt(itp, (jim_wide) *buf);
+    return JIM_OK;
+}
+
 int float_unpack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     float* buf = NULL;
     if (unpackerSetup_byVal(itp, objc, objv, sizeof(float), (void**)&buf) != JIM_OK) return JIM_ERR;
@@ -825,10 +889,12 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
         return JIM_ERR;
     }
     
+    // main required features.
     Jim_CreateCommand(itp, "dlr::native::loadLib", loadLib, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
     
+    // support features.
     Jim_CreateCommand(itp, "dlr::native::prepStructType", prepStructType, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
@@ -837,19 +903,29 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
     
+    // data packers.
     Jim_CreateCommand(itp, "dlr::native::u8-pack-byVal-asInt",              u8_pack_byVal_asInt,  NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u16-pack-byVal-asInt",             u16_pack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u32-pack-byVal-asInt",             u32_pack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u64-pack-byVal-asInt",             u64_pack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i8-pack-byVal-asInt",              i8_pack_byVal_asInt,  NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i16-pack-byVal-asInt",             i16_pack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i32-pack-byVal-asInt",             i32_pack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i64-pack-byVal-asInt",             i64_pack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::float-pack-byVal-asDouble",        float_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::double-pack-byVal-asDouble",       double_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-pack-byVal-asDouble",   longDouble_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::char-pack-byVal-asString",         char_pack_byVal_asString, NULL, NULL);
 
+    // data unpackers.
     Jim_CreateCommand(itp, "dlr::native::u8-unpack-byVal-asInt",            u8_unpack_byVal_asInt,  NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u16-unpack-byVal-asInt",           u16_unpack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u32-unpack-byVal-asInt",           u32_unpack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::u64-unpack-byVal-asInt",           u64_unpack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i8-unpack-byVal-asInt",            i8_unpack_byVal_asInt,  NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i16-unpack-byVal-asInt",           i16_unpack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i32-unpack-byVal-asInt",           i32_unpack_byVal_asInt, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::i64-unpack-byVal-asInt",           i64_unpack_byVal_asInt, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::float-unpack-byVal-asDouble",      float_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::double-unpack-byVal-asDouble",     double_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-unpack-byVal-asDouble", longDouble_unpack_byVal_asDouble, NULL, NULL);
