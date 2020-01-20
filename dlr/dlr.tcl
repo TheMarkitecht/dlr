@@ -600,6 +600,12 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
     #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
     
+    set computeNext "
+        if { \$nextOffsetVarName ne {}} { 
+            upvar \$nextOffsetVarName next 
+            set next \$( \$offsetBytes + \$${sQal}size ) 
+        } \n"
+    
     # generate pack-byVal-asList
     set body "
         lassign \$unpackedData  [join $memberTemps {  }] 
@@ -612,32 +618,37 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
         # it would definitely be harder to read and maintain with the magic numbers, 
         # and more likely to fail after the struct is recompiled.
     }
-    append body "
-        if { \$nextOffsetVarName ne {}} { 
-            upvar \$nextOffsetVarName next 
-            set next \$( \$offsetBytes + \$${sQal}size ) 
-        } " \n
-    # compose "proc" command.
+    append body $computeNext
     lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n }"
     
-    #todo:  generate pack-byVal-asDict
+    # generate pack-byVal-asDict
+    set body "::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    foreach  mName [get ${sQal}memberOrder]  {
+        set mQal ${sQal}member::${mName}::
+        append body "[get ${mQal}packer]  \$packVarName  \$unpackedData($mName)  \$( \$offsetBytes + \$${mQal}offset ) \n"
+    }
+    append body $computeNext
+    lappend procs "proc  ${sQal}pack-byVal-asDict  { $packerParms }  { \n$body \n }"
     
     # generate unpack-byVal-asList
-    set body "
-        if { \$nextOffsetVarName ne {}} { 
-            upvar \$nextOffsetVarName next 
-            set next \$( \$offsetBytes + \$${sQal}size ) 
-        } \n"
+    set body $computeNext
     append body  "return  \[ list  " \\ \n
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
-        append body " \[ [get ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \]  " \\ \n
+        append body " \[ [get ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
     }
     append body  \]  \n
-    # compose "proc" command.
     lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n }"
 
-    #todo:  generate unpack-byVal-asDict
+    # generate unpack-byVal-asDict
+    set body $computeNext
+    append body  "return  \[ dict create  " \\ \n
+    foreach  mName [get ${sQal}memberOrder]  {
+        set mQal ${sQal}member::${mName}::
+        append body " $mName \[ [get ${mQal}unpacker]  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
+    }
+    append body  \]  \n
+    lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n }"
 
     # save the generated code to a file.
     set script [join $procs \n\n]

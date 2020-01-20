@@ -45,6 +45,10 @@ quadT mulByValue(const quadT st, const int factor) {
     quadT r = {st.a * factor, st.b * factor, st.c * factor, st.d * factor};
     return r;
 }
+quadT mulDict(const quadT st, const int factor) {
+    return mulByValue(st, factor);
+}
+// test struct byPtr.
 
 // define another type.
 typedef u32 dataHandleT;

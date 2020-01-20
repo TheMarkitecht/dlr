@@ -127,6 +127,14 @@ loop attempt 2 5 {
     assert {$d == 13 * $attempt}
     puts quadT.d=$d
 }
+alias  mulDict  ::dlr::lib::testLib::mulDict::call
+loop attempt 2 5 {
+    set d [mulDict [dict create a 10 b 11 c 12 d 13] $attempt]
+    assert {$d(a) == 10 * $attempt}
+    assert {$d(b) == 11 * $attempt}
+    assert {$d(c) == 12 * $attempt}
+    assert {$d(d) == 13 * $attempt}
+}
 
 # allocHeap test
 loop attempt 0 3 {
