@@ -190,6 +190,7 @@ proc ::dlr::loadLib {metaAction  libAlias  fileNamePath} {
         error "Invalid meta action: $metaAction"
     }
     refreshMeta $( $metaAction eq {refreshMeta} )
+    file mkdir [file dirname [callWrapperPath $libAlias junk]]
     
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
