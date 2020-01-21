@@ -30,14 +30,14 @@ without writing any C/C++ code if you don't want to.
 * Works with Jim's `package require` command.
 * Automatically adapts to various machine word sizes and endianness.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
-* Tested on Debian 10.0 with libffi.so.6.0.4.
+* Tested on Debian 10.0 with libffi6-3.2.1-9.
 * Might work well on ARM too.  It has passed tests there before.  Drop me a line if you've tried it!
 
 ## Requirements:
 
 * Jim 0.79 or later
 * libffi (tested with libffi6-3.2.1-9)
-* gcc (tested with gcc 8.3.0)
+* gcc (tested with gcc 8.3.0); also works with clang.
 
 ## Building:
 
