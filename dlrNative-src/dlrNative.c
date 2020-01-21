@@ -731,7 +731,7 @@ int longDouble_pack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const ob
     return JIM_OK;
 }
 
-int char_pack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int ascii_pack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     if (objc > pk_argCount || objc < pk_offsetBytesIX) {
         Jim_SetResultString(itp, "Wrong # args.", -1);
         return JIM_ERR;
@@ -871,7 +871,7 @@ int longDouble_unpack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const 
 }
 
 //todo: add a test for this.
-int char_unpack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int ascii_unpack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     char* buf = NULL;
     if (unpackerSetup_byVal(itp, objc, objv, 0, (void**)&buf) != JIM_OK) return JIM_ERR;
     //todo: limit to a certain max length here for safety.  have the lib's binding script fetch that from metadata and pass it to here.
@@ -914,7 +914,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::float-pack-byVal-asDouble",        float_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::double-pack-byVal-asDouble",       double_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-pack-byVal-asDouble",   longDouble_pack_byVal_asDouble, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::char-pack-byVal-asString",         char_pack_byVal_asString, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::ascii-pack-byVal-asString",        ascii_pack_byVal_asString, NULL, NULL);
 
     // data unpackers.
     Jim_CreateCommand(itp, "dlr::native::u8-unpack-byVal-asInt",            u8_unpack_byVal_asInt,  NULL, NULL);
@@ -928,7 +928,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::float-unpack-byVal-asDouble",      float_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::double-unpack-byVal-asDouble",     double_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-unpack-byVal-asDouble", longDouble_unpack_byVal_asDouble, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::char-unpack-byVal-asString",       char_unpack_byVal_asString, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::ascii-unpack-byVal-asString",      ascii_unpack_byVal_asString, NULL, NULL);
 
     return JIM_OK;
 }

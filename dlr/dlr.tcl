@@ -95,8 +95,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::simple::uLong::ffiTypeCode          [get ::dlr::ffiType::u$::dlr::simple::long::bits      ]
     set ::dlr::simple::uLongLong::ffiTypeCode      [get ::dlr::ffiType::u$::dlr::simple::longLong::bits  ]
     set ::dlr::simple::sizeT::ffiTypeCode          [get ::dlr::ffiType::u$::dlr::simple::sizeT::bits     ]
-    set ::dlr::simple::char::ffiTypeCode           [get ::dlr::ffiType::i8]
-        #todo: rename char to string, and avoid using char for anything.  its intent is too vague.
+    set ::dlr::simple::ascii::ffiTypeCode          [get ::dlr::ffiType::i8                               ]
     # copy all from ffiType.
     foreach v [info vars ::dlr::ffiType::*] {
         set  ::dlr::simple::[namespace tail $v]::ffiTypeCode  [get $v]
@@ -107,7 +106,7 @@ proc ::dlr::initDlr {} {
         alias  ::dlr::$cmd  ::dlr::native::$cmd
     }
 
-    # passMethod's.  these are the different ways a native function might expect to receive its actual arguments.
+    # passMethod's.  these are the different ways a native function might expect to access its actual arguments.
     # these help determine which converter will be called, and how.
     set ::dlr::passMethods [list byVal byPtr]
     
@@ -131,8 +130,7 @@ proc ::dlr::initDlr {} {
     foreach typ {float double longDouble} {
         set ::dlr::simple::${typ}::scriptForms  [list asDouble asNative]
     }
-    #todo: asString implies some automatic encoding/decoding as needed.  this really could say "asNative" instead, for now, until encoding features are available.  but "asNative" implies you can't directly use it in scripts.  but in fact you can.
-    set ::dlr::simple::char::scriptForms        [list asString]
+    set ::dlr::simple::ascii::scriptForms       [list asString]
     set ::dlr::simple::void::scriptForms        [list]
 
     # aliases for converters written in C and provided by dlrNative by default.
@@ -146,7 +144,7 @@ proc ::dlr::initDlr {} {
         alias  ::dlr::simple::float::${conversion}-byVal-asDouble       ::dlr::native::float-${conversion}-byVal-asDouble
         alias  ::dlr::simple::double::${conversion}-byVal-asDouble      ::dlr::native::double-${conversion}-byVal-asDouble
         alias  ::dlr::simple::longDouble::${conversion}-byVal-asDouble  ::dlr::native::longDouble-${conversion}-byVal-asDouble
-        alias  ::dlr::simple::char::${conversion}-byVal-asString        ::dlr::native::char-${conversion}-byVal-asString
+        alias  ::dlr::simple::ascii::${conversion}-byVal-asString       ::dlr::native::ascii-${conversion}-byVal-asString
     }
 
     # converter aliases for certain types.  

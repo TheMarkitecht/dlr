@@ -48,7 +48,7 @@ quadT mulByValue(const quadT st, const int factor) {
 quadT mulDict(const quadT st, const int factor) {
     return mulByValue(st, factor);
 }
-// test struct byPtr.
+//todo: test struct byPtr.
 
 // define another type.
 typedef u32 dataHandleT;
@@ -78,3 +78,5 @@ extern void floatSquarePtr(double* stuff);
 void floatSquarePtr(double* stuff) {
     *stuff = *stuff * *stuff;
 }
+
+//todo: test ascii in, out, malloc'd out (Free in script) etc.
