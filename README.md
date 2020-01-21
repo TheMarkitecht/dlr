@@ -18,14 +18,17 @@ without writing any C/C++ code if you don't want to.
 
 ## Features of This Version:
 
+* Concise syntax for declaring native functions and structs.
+* Supports struct types.  But not nested structs, yet. 
+* Can automatically extract actual size and offset information for each struct member, as built by the current host's compiler.
 * Supports calling only one direction: from script to native code.
-* Supports struct types.  But not nested structs, yet.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
-* Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script library.
-* Modular packing/unpacking framework in the script library.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
+* Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script package.
+* Modular packing/unpacking framework in the script package.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
 * Automatically generated code is kept separate, in the `auto/` directory, while handwritten binding scripts are kept in the `script/` directory.
 * Ultra-simple build process.  Native source for dlr is just one .c file.
 * Works with Jim's `package require` command.
+* Automatically adapts to various machine word sizes and endianness.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
 * Tested on Debian 10.0 with libffi.so.6.0.4.
 * Might work well on ARM too.  It has passed tests there before.  Drop me a line if you've tried it!
@@ -42,11 +45,12 @@ See [build](build) script.
 
 ## Future Direction:
 
-* Expand the modular packing/unpacking framework in the script library, for unions etc.
-* Add a concise syntax for declaring the call.
+* Expand the modular packing/unpacking framework in the script package, for unions etc.
 * Test on ARM embedded systems.
+* Support callbacks from native code to script.
+* Supply a binding for a practical GUI toolkit, likely GTK+3.
 * Speed improvements?
-* Maybe let the script library generate C code to speed up your call, after your call is known to work well.
+* Maybe let the script package generate C code to speed up your call, after your call is known to work well.
 
 ## Legal stuff:
 ```
