@@ -155,7 +155,6 @@ int fnAddr(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 // return a dict of dimensions of types on the host platform where dlr was built.
 int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     Jim_Obj* lens[] = {
-        Jim_NewStringObj(itp, "char", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(char)), // guaranteed 1 by the C99 standard.
         Jim_NewStringObj(itp, "short", -1),         Jim_NewIntObj(itp, (jim_wide)sizeof(short)),
         Jim_NewStringObj(itp, "int", -1),           Jim_NewIntObj(itp, (jim_wide)sizeof(int)),
         Jim_NewStringObj(itp, "long", -1),          Jim_NewIntObj(itp, (jim_wide)sizeof(long)),

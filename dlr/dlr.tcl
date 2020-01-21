@@ -58,9 +58,9 @@ proc ::dlr::initDlr {} {
             set ::dlr::simple::${sign}${size}::bits  $size
         }
     }
-    # we assume unsigned ints are the same length as the signed ints.
-    foreach signed {char short int long longLong sSizeT} \
-        unsigned {uChar uShort uInt uLong uLongLong sizeT} {
+    # sizes of unsigned ints of unspecified length.  assume they're the same length as signed ones.
+    foreach signed {short int long longLong sSizeT} \
+        unsigned {uShort uInt uLong uLongLong sizeT} {
         set ::dlr::simple::${unsigned}::size  [get ::dlr::simple::${signed}::size]
         set ::dlr::simple::${unsigned}::bits  [get ::dlr::simple::${signed}::bits]
     }
