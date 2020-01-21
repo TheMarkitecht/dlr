@@ -85,6 +85,10 @@ typedef struct {
 } metaBlobT;
 static const char METABLOB_SIGNATURE[] = "meta";
 
+#define  DLR_NULL_PTR_FLAG  "::dlr::nullPtrFlag"
+#define  DLR_NULL_PTR_FLAG_STRLEN  (18)
+#define  setResultNullPtrFlag(itp)  Jim_SetResultString(itp, DLR_NULL_PTR_FLAG, DLR_NULL_PTR_FLAG_STRLEN);
+
 // this function's name is based on the library's actual filename.  Jim requires that. 
 extern int Jim_dlrNativeInit(Jim_Interp* itp);
 
@@ -793,6 +797,30 @@ int unpackerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     return JIM_OK;
 }
 
+int unpackerSetup_scriptPtr(Jim_Interp* itp, int objc, Jim_Obj * const objv[], 
+    int sizeBytes, void** bufP) {
+        
+    enum { 
+        cmdIX = 0,
+        pointerIntValueIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+
+    jim_wide p = 0;
+    if (Jim_GetWide(itp, objv[pointerIntValueIX], &p) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected pointer integer but got other data.", -1);
+        return JIM_ERR;
+    }
+
+    *bufP = (void*)p;
+    return JIM_OK;
+}
+
 int u8_unpack_byVal_asInt(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     u8* buf = NULL;
     if (unpackerSetup_byVal(itp, objc, objv, sizeof(u8), (void**)&buf) != JIM_OK) return JIM_ERR;
@@ -870,12 +898,25 @@ int longDouble_unpack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * const 
     return JIM_OK;
 }
 
-//todo: add a test for this.
 int ascii_unpack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     char* buf = NULL;
     if (unpackerSetup_byVal(itp, objc, objv, 0, (void**)&buf) != JIM_OK) return JIM_ERR;
     //todo: limit to a certain max length here for safety.  have the lib's binding script fetch that from metadata and pass it to here.
-    Jim_SetResultString(itp, (char*) buf, -1);
+    Jim_SetResultString(itp, buf, -1);
+    return JIM_OK;
+}
+
+// this does involve making a copy, so it's OK (and often best) for the script to 
+// free the pointer immediately after this.
+int ascii_unpack_scriptPtr_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    char* buf = NULL;
+    if (unpackerSetup_scriptPtr(itp, objc, objv, 0, (void**)&buf) != JIM_OK) return JIM_ERR;
+    //todo: limit to a certain max length here for safety.  have the lib's binding script fetch that from metadata and pass it to here.
+    if (buf == NULL) {
+        setResultNullPtrFlag(itp);
+    } else {
+        Jim_SetResultString(itp, buf, -1);
+    }
     return JIM_OK;
 }
 
@@ -929,6 +970,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::double-unpack-byVal-asDouble",     double_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-unpack-byVal-asDouble", longDouble_unpack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::ascii-unpack-byVal-asString",      ascii_unpack_byVal_asString, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::ascii-unpack-scriptPtr-asString",  ascii_unpack_scriptPtr_asString, NULL, NULL);
 
     return JIM_OK;
 }

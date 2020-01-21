@@ -20,7 +20,7 @@ without writing any C/C++ code if you don't want to.
 
 * Concise syntax for declaring native functions and structs.
 * Supports struct types.  But not nested structs, yet. 
-* Can automatically extract actual size and offset information for each struct member, as built by the current host's compiler.
+* Can automatically extract actual size and offset information for each struct member, as built by the current host's compiler (works with gcc or clang).
 * Supports calling only one direction: from script to native code.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script package.
@@ -37,7 +37,7 @@ without writing any C/C++ code if you don't want to.
 
 * Jim 0.79 or later
 * libffi (tested with libffi6-3.2.1-9)
-* gcc (tested with gcc 8.3.0); also works with clang.
+* gcc (tested with gcc 8.3.0)
 
 ## Building:
 

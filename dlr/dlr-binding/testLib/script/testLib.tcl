@@ -78,6 +78,17 @@ declareCallToNative  applyScript  testLib  {void}  floatSquarePtr  {
 
 # ############ cryptAscii and its types ######################################
 declareCallToNative  applyScript  testLib  {void}  cryptAscii  {
-    {inOut  byPtr   ascii   txt     asString}
+    {inOut  byPtr   ascii   clear   asString}
+    {in     byVal   int     step    asInt}
+}
+
+declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
+    {in     byPtr   ascii   clear   asString}
+    {out    byPtr   ptr     crypted asInt}
+    {in     byVal   int     step    asInt}
+}
+
+declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
+    {in     byPtr   ascii   clear   asString}
     {in     byVal   int     step    asInt}
 }

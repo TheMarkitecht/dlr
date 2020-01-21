@@ -46,6 +46,11 @@ proc ::dlr::initDlr {} {
     ::dlr::refreshMeta              0
     set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
 
+    # aliases to pass through to native implementations of certain dlr system commands.
+    foreach cmd {prepStructType prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
+        alias  ::dlr::$cmd  ::dlr::native::$cmd
+    }
+
     # bit and byte lengths of simple types, for use in converters.  byte lengths are useful for
     # dlr's converters.  bit lengths are more useful for Jim's pack/unpack, but those are slower.
     foreach typ [dict keys $::dlr::native::sizeOfSimpleTypes] {
@@ -101,11 +106,6 @@ proc ::dlr::initDlr {} {
         set  ::dlr::simple::[namespace tail $v]::ffiTypeCode  [get $v]
     }
 
-    # aliases to pass through to native implementations of certain dlr system commands.
-    foreach cmd {prepStructType prepMetaBlob callToNative createBufferVar addrOf allocHeap freeHeap} {
-        alias  ::dlr::$cmd  ::dlr::native::$cmd
-    }
-
     # passMethod's.  these are the different ways a native function might expect to access its actual arguments.
     # these help determine which converter will be called, and how.
     set ::dlr::passMethods [list byVal byPtr]
@@ -146,6 +146,7 @@ proc ::dlr::initDlr {} {
         alias  ::dlr::simple::longDouble::${conversion}-byVal-asDouble  ::dlr::native::longDouble-${conversion}-byVal-asDouble
         alias  ::dlr::simple::ascii::${conversion}-byVal-asString       ::dlr::native::ascii-${conversion}-byVal-asString
     }
+    alias  ::dlr::simple::ascii::unpack-scriptPtr-asString       ::dlr::native::ascii-unpack-scriptPtr-asString
 
     # converter aliases for certain types.  
     # types with length unspecified in C use converters for fixed-size types.
@@ -284,7 +285,7 @@ proc ::dlr::validateScriptForm {fullType scriptForm} {
         set fullType ::dlr::struct
     }
     if {$scriptForm ni [get ${fullType}::scriptForms]} {
-        error "Invalid scriptForm was given."
+        error "Invalid scriptForm was given for type: $fullType"
     }        
 }
 
@@ -361,8 +362,11 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     # in case the app needs to change it before using generateCallProc.
     
     # memorize metadata for return value.
-    # it's always "out byVal" but does support different types and scriptForms.
     # it does not support other variable names for the native value, since that's generally hidden from scripts anyway.
+    # it's always "out byVal" but does support different types and scriptForms.
+    # it's not practical to support "out byPtr" here because there are many variations of
+    # how the pointer's target was allocated, who is responsible for freeing that ram, etc.
+    # instead that must be left to the script app to deal with.
     set rQal ${fQal}return::
     lassign $returnTypeDescrip  type scriptForm
     set fullType [qualifyTypeName $type $libAlias]

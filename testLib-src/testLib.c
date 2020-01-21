@@ -23,6 +23,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -83,7 +85,25 @@ void floatSquarePtr(double* stuff) {
 
 extern void cryptAscii(char* txt, int step);
 void cryptAscii(char* txt, int step) {
-    for ( ; *txt != 0; txt++)
-        *txt += step;
+    char* ch = txt;
+    for ( ; *ch != 0; ch++)
+        *ch += step;
 }
-//todo: test malloc'd ascii out (Free in script) etc.
+
+extern void cryptAsciiMalloc(char* clear, char** crypted, int step);
+void cryptAsciiMalloc(char* clear, char** crypted, int step) {
+    *crypted = strdup(clear);
+    char* ch = *crypted;
+    for ( ; *ch != 0; ch++)
+        *ch += step;
+}
+
+extern char* cryptAsciiRtn(char* clear, int step);
+char* cryptAsciiRtn(char* clear, int step) {
+    char* crypted = strdup(clear);
+    char* ch = crypted;
+    for ( ; *ch != 0; ch++)
+        *ch += step;
+    return crypted;
+}
+
