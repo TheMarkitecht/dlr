@@ -87,6 +87,16 @@ declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
     {out    byPtr   ptr     crypted asInt}
     {in     byVal   int     step    asInt}
 }
+proc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged {clear cryptedVar step} {
+    # this is an additional little wrapper proc to manage memory according to the app's needs.
+    # it would run faster if we totally replaced ::dlr::lib::testLib::cryptAsciiMalloc::call
+    # with this proc, but this way instead demonstrates the easiest binding development.
+    upvar 1 $cryptedVar crypted
+    set cryptedP 0
+    ::dlr::lib::testLib::cryptAsciiMalloc::call $clear cryptedP $step
+    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
+    ::dlr::freeHeap $cryptedP
+}
 
 declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
     {in     byPtr   ascii   clear   asString}

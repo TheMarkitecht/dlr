@@ -201,7 +201,7 @@ loop attempt 2 5 {
     puts txt=$txt
     assert {$txt eq $correct}
 }
-alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::call
+alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
@@ -209,10 +209,7 @@ loop attempt 2 5 {
         scan $ch %c code
         append correct [format %c $($code + $attempt)]
     }
-    set cryptedP 0
-    cryptAsciiMalloc $clear cryptedP $attempt
-    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
-    ::dlr::freeHeap $cryptedP
+    cryptAsciiMalloc $clear crypted $attempt
     puts crypted=$crypted
     assert {$crypted eq $correct}
 }

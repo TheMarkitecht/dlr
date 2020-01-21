@@ -449,6 +449,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
         
         lappend procArgs $parmBare
         # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
+#todo: use upvar instead.  faster, and attractive, even for inOut.
         lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
     
         #todo: support asNative by wrapping the following block in "if asNative" and emit a plain "set"
