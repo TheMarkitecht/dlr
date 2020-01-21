@@ -81,5 +81,9 @@ void floatSquarePtr(double* stuff) {
     *stuff = *stuff * *stuff;
 }
 
-//todo: test ascii in, out, malloc'd out (Free in script) etc.
-
+extern void cryptAscii(char* txt, int step);
+void cryptAscii(char* txt, int step) {
+    for ( ; *txt != 0; txt++)
+        *txt += step;
+}
+//todo: test malloc'd ascii out (Free in script) etc.

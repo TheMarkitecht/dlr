@@ -98,16 +98,16 @@ alias  strtol  ::dlr::lib::testLib::strtolTest::call
 loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
-    puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
+    #puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
     set endP 0
     set resultUnpacked [strtol  $myNum  endP  10]
-    puts $myNum=$resultUnpacked
+    #puts $myNum=$resultUnpacked
     assert {$resultUnpacked == $myNum}
     # can't do reliable pointer arithmetic to verify new value of endP, 
     # due to copies being made during packing.
     # instead just verify it's not zero, and it's within about 100 MB of strP, meaning
     # it's somewhere on the same heap as strP.
-    puts endP=[format $::dlr::ptrFmt $endP]
+    #puts endP=[format $::dlr::ptrFmt $endP]
     assert {$endP != 0}
     set strPmasked $( [::dlr::addrOf myNum] & 0xfffffffff0000000 )
     set endPmasked $(                 $endP & 0xfffffffff0000000 )
@@ -186,6 +186,20 @@ loop attempt 2 5 {
     floatSquarePtr stuff
     #puts [format {stuff=%0.2f  sqr=%0.2f} $old $stuff]
     assert {abs( $stuff - $correct) < 0.1}
+}
+
+# cryptAscii test
+alias  cryptAscii  ::dlr::lib::testLib::cryptAscii::call
+loop attempt 2 5 {
+    set txt {modifying ascii by pointer}
+    set correct {}
+    foreach ch [split $txt {}] {
+        scan $ch %c code
+        append correct [format %c $($code + $attempt)]
+    }
+    cryptAscii txt $attempt
+    puts txt=$txt
+    assert {$txt eq $correct}
 }
 
 # verify "constant" dlr::null was not overwritten since startup.  

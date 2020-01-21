@@ -76,3 +76,8 @@ declareCallToNative  applyScript  testLib  {void}  floatSquarePtr  {
     {inOut     byPtr   double    stuff     asDouble}
 }
 
+# ############ cryptAscii and its types ######################################
+declareCallToNative  applyScript  testLib  {void}  cryptAscii  {
+    {inOut  byPtr   ascii   txt     asString}
+    {in     byVal   int     step    asInt}
+}
