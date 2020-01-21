@@ -198,7 +198,6 @@ loop attempt 2 5 {
         append correct [format %c $($code + $attempt)]
     }
     cryptAscii txt $attempt
-    puts txt=$txt
     assert {$txt eq $correct}
 }
 alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged
@@ -210,11 +209,9 @@ loop attempt 2 5 {
         append correct [format %c $($code + $attempt)]
     }
     cryptAsciiMalloc $clear crypted $attempt
-    puts crypted=$crypted
     assert {$crypted eq $correct}
 }
-exit 0 ;#todo
-alias  cryptAsciiRtn  ::dlr::lib::testLib::cryptAsciiRtn::call
+alias  cryptAsciiRtn  ::dlr::lib::testLib::cryptAsciiRtn::callManaged
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
@@ -222,14 +219,8 @@ loop attempt 2 5 {
         scan $ch %c code
         append correct [format %c $($code + $attempt)]
     }
-    set cryptedP [cryptAsciiRtn $clear $attempt]
-    
-    
-    
-    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
-    puts crypted=$crypted
-    assert {$crypted eq $correct}
-    ::dlr::freeHeap $cryptedP
+    set cryptedRtn [cryptAsciiRtn $clear $attempt]
+    assert {$cryptedRtn eq $correct}
 }
 
 # verify "constant" dlr::null was not overwritten since startup.  

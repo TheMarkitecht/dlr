@@ -102,3 +102,10 @@ declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
     {in     byPtr   ascii   clear   asString}
     {in     byVal   int     step    asInt}
 }
+proc  ::dlr::lib::testLib::cryptAsciiRtn::callManaged {clear step} {
+    # this is an additional little wrapper proc to manage memory according to the app's needs.
+    set cryptedP [::dlr::lib::testLib::cryptAsciiRtn::call $clear $step]
+    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
+    ::dlr::freeHeap $cryptedP
+    return $crypted
+}
