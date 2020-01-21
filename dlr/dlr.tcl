@@ -159,14 +159,17 @@ proc ::dlr::initDlr {} {
         }
     }
 
-    # pointer support
+    # pointer support.
     set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
     # scripts can use $::dlr::null instead of packing their own nulls.
     # packed nulls are typically not needed, but might be useful to speed up handwritten converters.
     ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0 
     # any asString data might contain this flag string, to represent a null pointer in the native data.
-    #todo: test that, for passing a null char* in and out of native func.
+    # other scriptForms generally represent null pointer as an empty string / list / dict.
     set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
+
+    # string support.
+    set ::dlr::stringTypes [list ::dlr::simple::ascii]
 
     # compiler support.
     # in the current version, all features work with either gcc or clang.
@@ -443,17 +446,37 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
         lappend procArgs $parmBare
         # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
         lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
-        
+    
         #todo: support asNative by wrapping the following block in "if asNative" and emit a plain "set"
         
         # pack a parm to pass in to the native func.  this must be done, even for "out" parms,
         # to ensure buffer space is available before the call.  that makes sense because
         # ordinary C code always does that.
         if {$passMethod eq {byPtr}} {
+            # check for the null pointer flag at run time.
+            # some scriptForm's have code here to try and avoid shimmering, for more speed. 
+            if {$scriptForm eq {asString}} {
+                set nullTest " \$$parmBare eq {$::dlr::nullPtrFlag} "
+            } elseif {$scriptForm eq {asList}} {
+                set nullTest " \[ llength \$$parmBare \] == 0 "
+            } elseif {$scriptForm eq {asDict}} {
+                set nullTest " \[ dict size \$$parmBare \] == 0 "
+            } elseif {$scriptForm eq {asNative}} {
+                error "Parameter '$parmBare' uses scriptForm '$scriptForm' which does not support 'byPtr' passMethod."
+            } else {
+                # all other scriptForms e.g. asInt, asDouble.
+                set nullTest " \[ string length \$$parmBare \] == 0 "
+            }
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
-            append body "$packer  $targetNativeName  \$$parmBare \n"
-            append body "::dlr::simple::ptr::pack-byVal-asInt  $parmNative  \[ ::dlr::addrOf  $targetNativeName \] \n"
+            append body "
+                if { $nullTest } {
+                    set  $parmNative  \$::dlr::null
+                } else {
+                    $packer  $targetNativeName  \$$parmBare
+                    ::dlr::simple::ptr::pack-byVal-asInt  $parmNative  \[ ::dlr::addrOf  $targetNativeName \]
+                }
+            "
         } else {
             append body "$packer  $parmNative  \$$parmBare \n"
         }
@@ -731,7 +754,5 @@ proc ::dlr::structConverterPath {libAlias  structTypeName} {
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
 
 #todo: supply example packers and unpackers.
-
-#todo: more converters for passing by pointer etc.  assume existing ones are for pass-by-value.
 
 ::dlr::initDlr

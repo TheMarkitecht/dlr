@@ -116,6 +116,7 @@ loop attempt 0 3 {
     # verify "constant" dlr::null was not overwritten.  that could have happened in older versions of this test.
     assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::null] == 0}
 }
+assert { -999999999 == [strtol  $::dlr::nullPtrFlag  endP  10]}
 
 # mulByValue test
 alias  mulByValue  ::dlr::lib::testLib::mulByValue::call
@@ -187,6 +188,9 @@ loop attempt 2 5 {
     assert {abs( $stuff - $correct) < 0.1}
 }
 
+# verify "constant" dlr::null was not overwritten since startup.  
+# always do this test last of all.
+assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::null] == 0}
 
 puts "*** ALL TESTS PASS ***"
 

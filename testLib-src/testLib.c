@@ -35,6 +35,8 @@ typedef uint32_t u32;
 // wrapper of a simple libc function, to help debugging and smoke testing.
 extern long int strtolTest(const char *nptr, char **endptr, int base);
 long int strtolTest(const char *nptr, char **endptr, int base) {
+    if (nptr == NULL)
+        return -999999999;
     return strtol(nptr, endptr, base);
 }
 
@@ -80,3 +82,4 @@ void floatSquarePtr(double* stuff) {
 }
 
 //todo: test ascii in, out, malloc'd out (Free in script) etc.
+
