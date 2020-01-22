@@ -26,24 +26,14 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <dlfcn.h>
 #include <jim.h>
-#include <ffi.h>
 //todo: clone, build and test with latest libffi.  system's libffi6-3.2.1-9 is 2014.
+#include "dlrNative.h"
 
 #define DLR_VERSION_STRING "0.2"
 
 //todo: periodically re-run all tests, and valgrind, with full compiler optimization on dlr and on the interp.  code may behave differently.
-
-typedef  uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef   int8_t i8;
-typedef  int16_t i16;
-typedef  int32_t i32;
-typedef  int64_t i64;
 
 typedef void (*ffiFnP)(void);
 
@@ -88,9 +78,6 @@ static const char METABLOB_SIGNATURE[] = "meta";
 #define  DLR_NULL_PTR_FLAG  "::dlr::nullPtrFlag"
 #define  DLR_NULL_PTR_FLAG_STRLEN  (18)
 #define  setResultNullPtrFlag(itp)  Jim_SetResultString(itp, DLR_NULL_PTR_FLAG, DLR_NULL_PTR_FLAG_STRLEN);
-
-// this function's name is based on the library's actual filename.  Jim requires that. 
-extern int Jim_dlrNativeInit(Jim_Interp* itp);
 
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
 
@@ -975,6 +962,7 @@ int ascii_unpack_scriptPtr_asString(Jim_Interp* itp, int objc, Jim_Obj * const o
     return JIM_OK;
 }
 
+// this function's name is based on the library's actual filename.  Jim requires that. 
 int Jim_dlrNativeInit(Jim_Interp* itp) {
     //ivkClientT* client = client_alloc(itp);
 
@@ -1031,3 +1019,4 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     return JIM_OK;
 }
 
+//todo: use Jim_WrongNumArgs throughout.
