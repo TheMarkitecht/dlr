@@ -121,11 +121,12 @@ declareCallToNative  applyScript  testLib  {ptr asInt}  mulMalloc  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
 }
+alias  ::dlr::lib::testLib::struct::quadT::unpack-scriptPtr-asList  \
+    ::dlr::struct::unpack-scriptPtr-free  asList  ::dlr::lib::testLib::struct::quadT  
 proc  ::dlr::lib::testLib::mulMalloc::callManaged {st factor} {
     # this is an additional little wrapper proc to manage memory according to the app's needs.
-    return [::dlr::struct::unpack-scriptPtr-free  ::dlr::lib::testLib::struct::quadT  asList  \
+    return [::dlr::lib::testLib::struct::quadT::unpack-scriptPtr-asList  \
         [::dlr::lib::testLib::mulMalloc::call $st $factor]]
 }
 #todo: factor out "copy from ptr" and "copy from ptr and free" for ascii.
-#todo: test aliasing byPtr unpackers to ::dlr::struct::unpack-scriptPtr-free
 

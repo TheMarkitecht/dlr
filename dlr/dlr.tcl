@@ -749,13 +749,18 @@ proc ::dlr::structConverterPath {libAlias  structTypeName} {
     return [file join $::dlr::bindingDir $libAlias auto $structTypeName.convert.tcl]
 }
 
-proc ::dlr::struct::unpack-scriptPtr {structTypeName  scriptForm  pointerIntValue} {
-    ::dlr::copyToBufferVar  native  ${structTypeName}::size  $pointerIntValue
-    set unpackedData [${structTypeName}::unpack-byVal-$scriptForm  $native]
-    return $unpackedData
+# does a copyToBufferVar followed by unpack-byVal.
+# useful when a native function returns a pointer to a struct as the function return value,
+# or it takes a parm that is pointer-to-pointer-to-struct, and sets the pointer e.g. by malloc'ing a struct.
+# this command helps to simplify memory management wrappers for those, in library binding scripts.
+# parameters are in this order for easy aliasing.
+proc ::dlr::struct::unpack-scriptPtr {scriptForm  structTypeName  pointerIntValue} {
+    ::dlr::copyToBufferVar  native  [::dlr::get ${structTypeName}::size]  $pointerIntValue
+    return [${structTypeName}::unpack-byVal-$scriptForm  $native]
 }
 
-proc ::dlr::struct::unpack-scriptPtr-free {structTypeName  scriptForm  pointerIntValue} {
+# equivalent to unpack-scriptPtr followed by freeHeap.
+proc ::dlr::struct::unpack-scriptPtr-free {scriptForm  structTypeName  pointerIntValue} {
     ::dlr::copyToBufferVar  native  [::dlr::get ${structTypeName}::size]  $pointerIntValue
     set unpackedData [${structTypeName}::unpack-byVal-$scriptForm  $native]
     ::dlr::freeHeap $pointerIntValue

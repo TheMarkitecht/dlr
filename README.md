@@ -24,7 +24,7 @@ without writing any C/C++ code if you don't want to.
 * Supports calling only one direction: from script to native code.
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script package.
-* Modular packing/unpacking framework in the script package.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
+* Extensible packing/unpacking framework in the script package.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
 * Automatically generated code is kept separate, in the `auto/` directory, while handwritten binding scripts are kept in the `script/` directory.
 * Ultra-simple build process.  Native source for dlr is just one .c file.
 * Works with Jim's `package require` command.
@@ -45,7 +45,7 @@ See [build](build) script.
 
 ## Future Direction:
 
-* Expand the modular packing/unpacking framework in the script package, for unions etc.
+* Expand the packing/unpacking framework in the script package, for unions etc.
 * Test on ARM embedded systems.
 * Support callbacks from native code to script.
 * Supply a binding for a practical GUI toolkit, likely GTK+3.
