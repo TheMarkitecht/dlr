@@ -229,7 +229,6 @@ loop attempt 2 5 {
     set st [list 10 11 12 13]
     mulPtr st $attempt
     lassign $st a b c d
-    puts quadPtr.d=$d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
@@ -238,7 +237,6 @@ loop attempt 2 5 {
 alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::callManaged
 loop attempt 2 5 {
     lassign [mulMalloc [list 10 11 12 13] $attempt] a b c d
-    puts quadMalloc.d=$d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}

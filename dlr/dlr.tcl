@@ -749,6 +749,19 @@ proc ::dlr::structConverterPath {libAlias  structTypeName} {
     return [file join $::dlr::bindingDir $libAlias auto $structTypeName.convert.tcl]
 }
 
+proc ::dlr::struct::unpack-scriptPtr {structTypeName  scriptForm  pointerIntValue} {
+    ::dlr::copyToBufferVar  native  ${structTypeName}::size  $pointerIntValue
+    set unpackedData [${structTypeName}::unpack-byVal-$scriptForm  $native]
+    return $unpackedData
+}
+
+proc ::dlr::struct::unpack-scriptPtr-free {structTypeName  scriptForm  pointerIntValue} {
+    ::dlr::copyToBufferVar  native  [::dlr::get ${structTypeName}::size]  $pointerIntValue
+    set unpackedData [${structTypeName}::unpack-byVal-$scriptForm  $native]
+    ::dlr::freeHeap $pointerIntValue
+    return $unpackedData
+}
+
 # #################  CONVERTERS  ####################################
 # converters are broken out into individual commands by data type.
 # that supports fast dispatch, and selective implementation of 
