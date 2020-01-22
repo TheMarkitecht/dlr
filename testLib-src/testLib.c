@@ -49,10 +49,10 @@ quadT mulByValue(const quadT st, const int factor) {
     quadT r = {st.a * factor, st.b * factor, st.c * factor, st.d * factor};
     return r;
 }
+extern quadT mulDict(const quadT st, const int factor);
 quadT mulDict(const quadT st, const int factor) {
     return mulByValue(st, factor);
 }
-//todo: test struct byPtr.
 
 // define another type.
 typedef u32 dataHandleT;
@@ -105,5 +105,23 @@ char* cryptAsciiRtn(char* clear, int step) {
     for ( ; *ch != 0; ch++)
         *ch += step;
     return crypted;
+}
+
+// pass a struct or array by pointer.  return a different version of that.
+extern void mulPtr(quadT* st, const int factor);
+void mulPtr(quadT* st, const int factor) {
+    st->a *= factor;
+    st->b *= factor;
+    st->c *= factor;
+    st->d *= factor;
+}
+extern quadT* mulMalloc(const quadT st, const int factor);
+quadT* mulMalloc(const quadT st, const int factor) {
+    quadT* r = (quadT*)malloc(sizeof(quadT));
+    r->a = st.a * factor;
+    r->b = st.b * factor;
+    r->c = st.c * factor;
+    r->d = st.d * factor;
+    return r;
 }
 

@@ -223,6 +223,28 @@ loop attempt 2 5 {
     assert {$cryptedRtn eq $correct}
 }
 
+# mulPtr and mulMalloc test
+alias  mulPtr  ::dlr::lib::testLib::mulPtr::call
+loop attempt 2 5 {
+    set st [list 10 11 12 13]
+    mulPtr st $attempt
+    lassign $st a b c d
+    puts quadPtr.d=$d
+    assert {$a == 10 * $attempt}
+    assert {$b == 11 * $attempt}
+    assert {$c == 12 * $attempt}
+    assert {$d == 13 * $attempt}
+}
+alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::callManaged
+loop attempt 2 5 {
+    lassign [mulMalloc [list 10 11 12 13] $attempt] a b c d
+    puts quadMalloc.d=$d
+    assert {$a == 10 * $attempt}
+    assert {$b == 11 * $attempt}
+    assert {$c == 12 * $attempt}
+    assert {$d == 13 * $attempt}
+}
+
 # verify "constant" dlr::null was not overwritten since startup.  
 # always do this test last of all.
 assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::null] == 0}

@@ -109,3 +109,26 @@ proc  ::dlr::lib::testLib::cryptAsciiRtn::callManaged {clear step} {
     ::dlr::freeHeap $cryptedP
     return $crypted
 }
+
+# ############ mulPtr and its types ######################################
+
+declareCallToNative  applyScript  testLib  {void}  mulPtr  {
+    {inOut  byPtr   quadT   st      asList}
+    {in     byVal   int     factor  asInt}
+}
+
+declareCallToNative  applyScript  testLib  {ptr asInt}  mulMalloc  {
+    {in     byVal   quadT   st      asList}
+    {in     byVal   int     factor  asInt}
+}
+proc  ::dlr::lib::testLib::mulMalloc::callManaged {st factor} {
+    # this is an additional little wrapper proc to manage memory according to the app's needs.
+    set quadP [::dlr::lib::testLib::mulMalloc::call $st $factor]
+    ::dlr::copyToBufferVar  quadNative  $::dlr::lib::testLib::struct::quadT::size  $quadP
+    set quad [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList $quadNative]
+    ::dlr::freeHeap $quadP
+    return $quad
+}
+#todo: factor out "copy from ptr" and "copy from ptr and free" for ascii and struct.
+
+

@@ -340,7 +340,62 @@ int createBufferVar(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "Expected size integer but got other data.", -1);
         return JIM_ERR;
     }
-    return createBufferVarNative(itp, objv[varNameIX], (int)len, NULL, NULL);
+    
+    void* bufP = NULL;
+    if (createBufferVarNative(itp, objv[varNameIX], (int)len, &bufP, NULL) != JIM_OK)
+        return JIM_ERR;
+    
+    // pass new buffer's address back to script as result of this command.    
+    Jim_SetResultInt(itp, (jim_wide)bufP);
+    return JIM_OK;
+}
+
+// equivalent to [createBufferVar] followed by memcpy() to fill it.
+// this does involve making a copy, so it's OK (and often best) for the script to 
+// free the pointer immediately after this.
+int copyToBufferVar(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum { 
+        cmdIX = 0,
+        varNameIX,
+        lenIX,
+        sourcePointerIntValueIX,
+        argCount
+    };
+    
+    if (objc != argCount) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+
+    jim_wide len;
+    if (Jim_GetWide(itp, objv[lenIX], &len) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected size integer but got other data.", -1);
+        return JIM_ERR;
+    }
+    if (len < 1) {
+        Jim_SetResultString(itp, "Size must be at least 1.", -1);
+        return JIM_ERR;
+    }
+    
+    jim_wide srcW;
+    if (Jim_GetWide(itp, objv[sourcePointerIntValueIX], &srcW) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected source pointer integer but got other data.", -1);
+        return JIM_ERR;
+    }
+    void* srcP = (void*)srcW;
+    if (srcP == NULL) {
+        Jim_SetResultString(itp, "Source pointer must not be null.", -1);
+        return JIM_ERR;
+    }
+    
+    void* bufP = NULL;
+    if (createBufferVarNative(itp, objv[varNameIX], (int)len, &bufP, NULL) != JIM_OK)
+        return JIM_ERR;
+    memcpy(bufP, srcP, (size_t)len);
+    
+    // pass new buffer's address back to script as result of this command.    
+    Jim_SetResultInt(itp, (jim_wide)bufP);
+    return JIM_OK;
 }
 
 int varToTypeP(Jim_Interp* itp, Jim_Obj *var, ffi_type** typ) {
@@ -939,6 +994,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::fnAddr", fnAddr, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::addrOf", addrOf, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::createBufferVar", createBufferVar, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::copyToBufferVar", copyToBufferVar, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::allocHeap", allocHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::freeHeap", freeHeap, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::sizeOfTypes", sizeOfTypes, NULL, NULL);
