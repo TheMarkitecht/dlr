@@ -8,11 +8,11 @@ Legal stuff:  see below.
 
 ## Introduction:
 
-dlr is an extension for [Jim Tcl](http://jim.tcl.tk/), the small-footprint Tcl interpreter.
+**dlr** is an extension for [Jim Tcl](http://jim.tcl.tk/), the small-footprint Tcl interpreter.
 
-dlr may be easily pronounced as "dealer".
+**dlr** may be easily pronounced as "dealer".
 
-dlr binds your Jim scripts to libffi (Foreign Function Interface).
+**dlr** binds your Jim scripts to libffi (Foreign Function Interface).
 It lets your Jim scripts dynamically call a shared object library (.so file) of your choosing,
 without writing any C/C++ code if you don't want to.
 
@@ -27,7 +27,7 @@ without writing any C/C++ code if you don't want to.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script package.
 * Extensible packing/unpacking framework in the script package.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
 * Automatically generated code is kept separate, in the `auto/` directory, while handwritten binding scripts are kept in the `script/` directory.
-* Ultra-simple build process.  Native source for dlr is just one .c file.
+* Ultra-simple build process.  Native source for **dlr** is just one .c file.
 * Works with Jim's `package require` command.
 * Automatically adapts to various machine word sizes and endianness.
 * Designed for Jim 0.79 on GNU/Linux for amd64 architecture (includes Intel CPU's).
