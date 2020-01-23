@@ -19,9 +19,10 @@ without writing any C/C++ code if you don't want to.
 ## Features of This Version:
 
 * Concise syntax for declaring native functions and structs.
-* Supports struct types.  But not nested structs, yet. 
+* Supports struct types.  But not nested structs, yet.
 * Can automatically extract actual size and offset information for each struct member, as built by the current host's compiler (works with gcc or clang).
 * Supports calling only one direction: from script to native code.
+* Supports GObject Introspection for calling GTK+ 3 GUI toolkit, and other libraries built on GNOME GObject.  See [gizmo project](http://github.com/TheMarkitecht/gizmo)
 * Lightweight, small footprint.  No dependencies other than Jim and libffi.
 * Creates the thinnest possible C wrapper around libffi, for maximum simplicity, and future portability.  The surrounding features are implemented in a script package.
 * Extensible packing/unpacking framework in the script package.  That supports fast dispatch, and selective implementation of certain type conversions entirely in C, if needed for your app.
@@ -48,7 +49,7 @@ See [build](build) script.
 * Expand the packing/unpacking framework in the script package, for unions etc.
 * Test on ARM embedded systems.
 * Support callbacks from native code to script.
-* Supply a binding for a practical GUI toolkit, likely GTK+3.
+* Supply a binding for a practical GUI toolkit, likely GTK+3.  << this is in progress; see [gizmo project](http://github.com/TheMarkitecht/gizmo)
 * Speed improvements?
 * Maybe let the script package generate C code to speed up your call, after your call is known to work well.
 
@@ -86,7 +87,7 @@ Send donations, praise, curses, and the occasional question to: `Mark-ate-TheMar
 
 ## Final Word:
 
-I hope you enjoy this software.  If you enhance it, port it to another environment, 
+I hope you enjoy this software.  If you enhance it, port it to another environment,
 or just use it in your project etc., by all means let me know.
 
 >  \- TheMarkitecht
