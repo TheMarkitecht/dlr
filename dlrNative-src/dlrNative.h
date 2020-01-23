@@ -25,6 +25,7 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include <ffi.h>
+//todo: clone, build and test with latest libffi.  system's libffi6-3.2.1-9 is 2014.
 
 typedef  uint8_t u8;
 typedef uint16_t u16;
@@ -63,6 +64,10 @@ extern int prepStructType(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
 extern int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
 
 extern int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
+
+#ifdef BUILD_GIZMO
+extern int callToGI(Jim_Interp* itp, int objc, Jim_Obj * const objv[]);
+#endif
 
 extern int packerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int sizeBytes, void** bufP);

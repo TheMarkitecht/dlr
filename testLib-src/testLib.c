@@ -125,3 +125,7 @@ quadT* mulMalloc(const quadT st, const int factor) {
     return r;
 }
 
+// add a bogus function that we'll hijack for GI.  //todo: remove
+extern void assertGI(char* a, char* b, int line, char* c, char* d);
+void assertGI(char* a, char* b, int line, char* c, char* d) {
+}

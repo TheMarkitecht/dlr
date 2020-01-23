@@ -1,23 +1,23 @@
 #  "dlr" - Dynamic Library Redux
 #  Copyright 2020 Mark Hubbard, a.k.a. "TheMarkitecht"
 #  http://www.TheMarkitecht.com
-#   
+#
 #  Project home:  http://github.com/TheMarkitecht/dlr
 #  dlr is an extension for Jim Tcl (http://jim.tcl.tk/)
 #  dlr may be easily pronounced as "dealer".
-#   
+#
 #  This file is part of dlr.
-#   
+#
 #  dlr is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
-#   
+#
 #  dlr is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Lesser General Public License for more details.
-#   
+#
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -26,6 +26,8 @@ set ::dlr::scriptPkg [info script]
 set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
 #todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
+
+#todo: detect gizmo pkg, and enable declaring gnome calls.
 
 # this is already called when the package is sourced.  no need for the app to call this.
 proc ::dlr::initDlr {} {
@@ -39,15 +41,18 @@ proc ::dlr::initDlr {} {
 
     # fundamentals
     set ::dlr::endian               le
+    #todo: detect endian from compiler macros in dlrNative.
     set ::dlr::intEndian            -int$::dlr::endian  ;# for use with Jim's pack/unpack commands.
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
-    set ::dlr::directions           [list in out inOut]
     ::dlr::refreshMeta              0
     set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
 
+    set ::dlr::directions           [list in out inOut]
+    set ::dlr::directionFlags       [dict create in 1 out 2 inOut 3]
+
     # aliases to pass through to native implementations of certain dlr system commands.
-    foreach cmd {prepStructType prepMetaBlob callToNative 
+    foreach cmd {prepStructType prepMetaBlob callToNative callToGI
         createBufferVar copyToBufferVar addrOf allocHeap freeHeap} {
         alias  ::dlr::$cmd  ::dlr::native::$cmd
     }
@@ -88,7 +93,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::ffiType::i64         12
     set ::dlr::ffiType::ptr         14
 
-    # ... and an extended map also, including those plus additional aliases 
+    # ... and an extended map also, including those plus additional aliases
     # corresponding to C language types on the host platform.
     # we assume unsigned ints are the same length as the signed ints.
     set ::dlr::simple::int::ffiTypeCode            [get ::dlr::ffiType::i$::dlr::simple::int::bits       ]
@@ -110,13 +115,13 @@ proc ::dlr::initDlr {} {
     # passMethod's.  these are the different ways a native function might expect to access its actual arguments.
     # these help determine which converter will be called, and how.
     set ::dlr::passMethods [list byVal byPtr]
-    
+
     # scriptForms.  these are the different ways a script app might want to represent a given type
-    # for easy handling in script.  
+    # for easy handling in script.
     # these help determine which converter will be called, and how.
     # each scriptForm is prefixed with the word "as" to prevent confusion with native data types,
     # to increase their mnemonic value to the script developer, and to clarify the meaning of type descriptions.
-    # here each type offers a list of scriptForms.  the first scriptForm in each list tends to 
+    # here each type offers a list of scriptForms.  the first scriptForm in each list tends to
     # be the most useful scriptForm for that data type.
     # the scriptForm "asNative" means a binary blob, having the same layout the native function uses.
     # those tend to be opaque to script, so not very useful there.  but they can be passed directly
@@ -149,7 +154,7 @@ proc ::dlr::initDlr {} {
     }
     alias  ::dlr::simple::ascii::unpack-scriptPtr-asString       ::dlr::native::ascii-unpack-scriptPtr-asString
 
-    # converter aliases for certain types.  
+    # converter aliases for certain types.
     # types with length unspecified in C use converters for fixed-size types.
     # the fixed size is selected according to the actual host at compile time.
     foreach conversion {pack unpack} {
@@ -165,7 +170,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
     # scripts can use $::dlr::null instead of packing their own nulls.
     # packed nulls are typically not needed, but might be useful to speed up handwritten converters.
-    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0 
+    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
     set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
@@ -175,7 +180,7 @@ proc ::dlr::initDlr {} {
 
     # compiler support.
     # in the current version, all features work with either gcc or clang.
-    set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]    
+    set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]
     set ::dlr::compiler $::dlr::defaultCompiler
 }
 
@@ -186,7 +191,7 @@ proc ::dlr::initDlr {} {
 # handwritten binding script (under dlr::bindingDir) into the live interpreter.
 # but first, loadLib will set dlr::refreshMeta in order to automatically regenerate all
 # that lib's cached metadata and generated scripts, if metaAction is refreshMeta.
-# typically you should pass refreshMeta (rather than keepMeta) to loadLib if you 
+# typically you should pass refreshMeta (rather than keepMeta) to loadLib if you
 # suspect the native library's source or binary have changed since the last time.
 # using it on every run of the script app would cost additional startup time.
 proc ::dlr::loadLib {metaAction  libAlias  fileNamePath} {
@@ -195,10 +200,10 @@ proc ::dlr::loadLib {metaAction  libAlias  fileNamePath} {
     }
     refreshMeta $( $metaAction eq {refreshMeta} )
     file mkdir [file dirname [callWrapperPath $libAlias junk]]
-    
+
     set handle [native::loadLib $fileNamePath]
     set ::dlr::libHandle::$libAlias $handle
-    
+
     source [file join $::dlr::bindingDir $libAlias script $libAlias.tcl]
     return {}
 }
@@ -256,7 +261,7 @@ proc ::dlr::isStructType {typeVarName} {
 proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     if {[string match *::* $typeVarName]} {
         return $typeVarName
-    } 
+    }
     # here we assume that libs describe only structs, never simple types.
     set sType ::dlr::lib::${libAlias}::struct::${typeVarName}
     if {[info exists ${sType}::meta]} {
@@ -280,24 +285,24 @@ proc ::dlr::selectTypeMeta {type} {
 
 proc ::dlr::validateScriptForm {fullType scriptForm} {
     if {$fullType eq {::dlr::simple::void}} {
-        return 
+        return
     }
     if {[isStructType $fullType]} {
         set fullType ::dlr::struct
     }
     if {$scriptForm ni [get ${fullType}::scriptForms]} {
         error "Invalid scriptForm was given for type: $fullType"
-    }        
+    }
 }
 
-# return the first portion of structTypeName, which is the qualifier for the 
+# return the first portion of structTypeName, which is the qualifier for the
 # structure's metadata namespace.
 proc ::dlr::structQal {structTypeName} {
     return ::[nsJoin [lrange [nsSplit $structTypeName] 0 4]]
 }
 
 proc ::dlr::nsSplit {ns} {
-    return [regexp -all -inline {[^:]+} $ns]    
+    return [regexp -all -inline {[^:]+} $ns]
 }
 
 proc ::dlr::nsJoin {parts} {
@@ -311,35 +316,49 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
     return ${fullType}::${conversion}-${passMethod}-$scriptForm
 }
 
-# at each declaration, if scriptAction is applyScript, dlr source's the generated 
+# at each declaration, if scriptAction is applyScript, dlr source's the generated
 # support scripts into the live interpreter.
 # per the app's needs, it could instead define its own support procs (noScript).
 # or it could source the generated ones, and then modify or further wrap certain ones.
 #todo: more documentation
 proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+    ::dlr::declareCallToNativeCore  ::dlr::callToNative  \
+        $scriptAction  $libAlias  $returnTypeDescrip  $fnName  $parmsDescrip
+}
+
+# like declareCallToNative, but for GObject Introspection calls instead.
+proc ::dlr::declareCallToGI {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+    ::dlr::declareCallToNativeCore  ::dlr::callToGI  \
+        $scriptAction  $libAlias  $returnTypeDescrip  $fnName  $parmsDescrip
+}
+
+proc ::dlr::declareCallToNativeCore {callCommand  scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+
     set fQal ::dlr::lib::${libAlias}::${fnName}::
-    
+
     # memorize metadata for parms.
     set order [list]
     set orderNative [list]
-    set typesMeta [list] 
+    set typesMeta [list]
+    set parmFlagsList [list]
     foreach parmDesc $parmsDescrip {
         lassign $parmDesc  dir  passMethod  type  name  scriptForm
         set pQal ${fQal}parm::${name}::
-        
+
         lappend order $name
         lappend orderNative ${pQal}native
-                
+
         if {$dir ni $::dlr::directions} {
             error "Invalid direction of flow was given."
         }
         set ${pQal}dir  $dir
-        
+        lappend parmFlagsList $::dlr::directionFlags($dir)
+
         if {$passMethod ni $::dlr::passMethods} {
             error "Invalid passMethod was given."
         }
         set ${pQal}passMethod  $passMethod
-        
+
         set fullType [qualifyTypeName $type $libAlias]
         set ${pQal}type  $fullType
         set ${pQal}passType $( $passMethod eq {byPtr} ? {::dlr::simple::ptr} : $fullType )
@@ -359,9 +378,9 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     }
     set ${fQal}parmOrder        $order
     set ${fQal}parmOrderNative  $orderNative
-    # parmOrderNative is also derived and memorized here, along with the rest, 
+    # parmOrderNative is also derived and memorized here, along with the rest,
     # in case the app needs to change it before using generateCallProc.
-    
+
     # memorize metadata for return value.
     # it does not support other variable names for the native value, since that's generally hidden from scripts anyway.
     # it's always "out byVal" but does support different types and scriptForms.
@@ -382,11 +401,11 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
         set ${rQal}padding  $($::dlr::simple::ffiArg::size - [get ${fullType}::size])
     }
     set rMeta [selectTypeMeta $fullType]
-    
+
     if [refreshMeta] {
-        generateCallProc  $libAlias  $fnName
+        generateCallProc  $libAlias  $fnName  $callCommand
     }
-    
+
     #todo: enhance all error messages throughout the project.
     if {$scriptAction ni {applyScript noScript}} {
         error "Invalid script action: $scriptAction"
@@ -394,12 +413,12 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     if {$scriptAction eq {applyScript}} {
         source [callWrapperPath  $libAlias  $fnName]
     }
-    
-    # prepare a metaBlob to hold dlrNative and FFI data structures.  
+
+    # prepare a metaBlob to hold dlrNative and FFI data structures.
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
     # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
     prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
-        ${rQal}native  $rMeta  $orderNative  $typesMeta  
+        ${rQal}native  $rMeta  $orderNative  $typesMeta  $parmFlagsList
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
@@ -424,13 +443,13 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
 # the generated code uses fully qualified variable names throughout, for speed.
 # they are never computed on the fly e.g. using fQal.
 #
-# before calling generateCallProc, the app can modify metadata kept under 
+# before calling generateCallProc, the app can modify metadata kept under
 # ::dlr::lib::${libAlias}::${fnName}, to tailor the generated code for the app's needs.
 #
-# if needed, the script app can also supply its own call wrapper proc, or use none at all, 
+# if needed, the script app can also supply its own call wrapper proc, or use none at all,
 # instead of using generateCallProc.  look to the generated wrapper procs for examples.
 # sometimes more speed can be found with handwritten code.
-proc ::dlr::generateCallProc {libAlias  fnName} {
+proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
     # call packers to pack "in" parms.
@@ -439,27 +458,27 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
     set body {}
     foreach  parmBare [get ${fQal}parmOrder]  parmNative [get ${fQal}parmOrderNative] {
         # parmBare is the simple name of the parameter, such as "radix".
-        # parmNative is the qualified name of the variable holding the parm's 
+        # parmNative is the qualified name of the variable holding the parm's
         # packed binary data for one call, such as "::dlr::lib::testLib::strtolTest::parm::radix::native"
         # that qualified name stays the same across calls, but often it must hold
         # a different value for each call, so its content must be repacked for each call.
-        
+
         # set up local names to access all the metadata for this parm.
         set pQal ${fQal}parm::${parmBare}::
         foreach v [info vars ${pQal}* ] {upvar  #0  $v  [namespace tail $v]}
-        
+
         lappend procArgs $parmBare
         # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
         lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
-    
+
         #todo: support asNative by wrapping the following block in "if asNative" and emit a plain "set"
-        
+
         # pack a parm to pass in to the native func.  this must be done, even for "out" parms,
         # to ensure buffer space is available before the call.  that makes sense because
         # ordinary C code always does that.
         if {$passMethod eq {byPtr}} {
             # check for the null pointer flag at run time.
-            # some scriptForm's have code here to try and avoid shimmering, for more speed. 
+            # some scriptForm's have code here to try and avoid shimmering, for more speed.
             if {$scriptForm eq {asString}} {
                 set nullTest " \$$parmBare eq {$::dlr::nullPtrFlag} "
             } elseif {$scriptForm eq {asList}} {
@@ -486,25 +505,25 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
             append body "$packer  $parmNative  \$$parmBare \n"
         }
     }
-    
+
     # call native function.
     set rQal ${fQal}return::
     if {[get ${rQal}type] eq {::dlr::simple::void}} {
-        append body "::dlr::callToNative  ${fQal}meta \n"
+        append body "$callCommand  ${fQal}meta \n"
     } else {
-        append body "set  ${rQal}native  \[ ::dlr::callToNative  ${fQal}meta \] \n"
+        append body "set  ${rQal}native  \[ $callCommand  ${fQal}meta \] \n"
     }
-    
+
     # call unpackers to unpack "out" parms.
     foreach  \
         parmBare  [get ${fQal}parmOrder]  \
         parmNative  [get ${fQal}parmOrderNative]  \
         procArg  $procArgs  {
-            
+
         # set up local names to access all the metadata for this parm.
         set pQal ${fQal}parm::${parmBare}::
         foreach v [info vars ${pQal}* ] {upvar  #0  $v  [namespace tail $v]}
-        
+
         # unpack a parm passed back from the native func.
         if {$dir in {out inOut}} {
             if {$passMethod eq {byPtr}} {
@@ -514,7 +533,7 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
             }
         }
     }
-    
+
     # unpack return value.
     if {[get ${rQal}type] ne {::dlr::simple::void}} {
         append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
@@ -522,12 +541,12 @@ proc ::dlr::generateCallProc {libAlias  fnName} {
 
     # compose "proc" command.
     set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"
-    
+
     # save the generated code to a file.
     set f [open [callWrapperPath $libAlias $fnName] w]
     puts $f $procCmd
     close $f
-    
+
     return $procCmd
 }
 
@@ -552,25 +571,25 @@ proc ::dlr::declareStructType {scriptAction  libAlias  structTypeName  membersDe
 
 proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
-    
+
     # unpack metadata from the given declaration and memorize it.
     #todo: support nested structs.
     set ${sQal}memberOrder [list]
     foreach {mDescrip} $membersDescrip {
         lassign $mDescrip mType mName mScriptForm
         set mQal ${sQal}member::${mName}::
-        
+
         lappend ${sQal}memberOrder $mName
-        
+
         if { ! [info exists ::dlr::simple::${mType}::ffiTypeCode]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
         }
         set mFullType ::dlr::simple::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
         set ${mQal}type $mFullType
-        
-        validateScriptForm $mFullType $mScriptForm        
+
+        validateScriptForm $mFullType $mScriptForm
         set ${mQal}scriptForm $mScriptForm
-        
+
         set ${mQal}packer    [converterName   pack $mFullType byVal $mScriptForm]
         set ${mQal}unpacker  [converterName unpack $mFullType byVal $mScriptForm]
     }
@@ -578,7 +597,7 @@ proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
 
 proc ::dlr::validateStructType {libAlias  structTypeName} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
-    
+
     # load up the type information previously detected and cached in the binding dir.
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $structTypeName.struct]
     if { ! [file readable $layoutFn]} {
@@ -597,16 +616,16 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
         set mQal ${sQal}member::${mName}::
         set mFullType [get ${mQal}type]
         lappend typeMeta [selectTypeMeta $mFullType]
-        
+
         set ix [lsearch $membersRemain $mName]
         if {$ix < 0} {
             error "Library '$libAlias' struct '$typ' member '$mName' is not found in the detected metadata."
         }
-        set membersRemain [lreplace $membersRemain $ix $ix]    
-        
+        set membersRemain [lreplace $membersRemain $ix $ix]
+
         set mDic [dict get $sDic members $mName]
         set ${mQal}offset $mDic(offset)
-        
+
         if {$mDic(size) != [get ${mFullType}::size]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type does not match its size in the detected metadata."
         }
@@ -615,9 +634,9 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
         # this could happen e.g. if the cached metadata was generated with an earlier version of the declaration.
         error "Library '$libAlias' struct '$typ' member '[lindex $membersRemain 0]' is mentioned in the detected metadata but not in the given declaration."
     }
-    
+
     # prep FFI type record for this structure.  do this last of all.
-    ::dlr::prepStructType  ${sQal}meta  $typeMeta   
+    ::dlr::prepStructType  ${sQal}meta  $typeMeta
 }
 
 #todo: documentation similar to generateCallProc
@@ -629,28 +648,28 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set memberTemps [lmap m [get ${sQal}memberOrder] {expr {"mv::$m"}}]
 
     #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
-    
+
     set computeNext "
-        if { \$nextOffsetVarName ne {}} { 
-            upvar \$nextOffsetVarName next 
-            set next \$( \$offsetBytes + \$${sQal}size ) 
+        if { \$nextOffsetVarName ne {}} {
+            upvar \$nextOffsetVarName next
+            set next \$( \$offsetBytes + \$${sQal}size )
         } \n"
-    
+
     # generate pack-byVal-asList
     set body "
-        lassign \$unpackedData  [join $memberTemps {  }] 
+        lassign \$unpackedData  [join $memberTemps {  }]
         ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
     foreach  mName [get ${sQal}memberOrder]  mTemp $memberTemps  {
         set mQal ${sQal}member::${mName}::
         append body "[get ${mQal}packer]  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
         # that could run faster (maybe?) if it placed the offset integer into the script
         # instead of fetching it from metadata at run time.  then again, it might not.
-        # it would definitely be harder to read and maintain with the magic numbers, 
+        # it would definitely be harder to read and maintain with the magic numbers,
         # and more likely to fail after the struct is recompiled.
     }
     append body $computeNext
     lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n }"
-    
+
     # generate pack-byVal-asDict
     set body "::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
     foreach  mName [get ${sQal}memberOrder]  {
@@ -659,7 +678,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     }
     append body $computeNext
     lappend procs "proc  ${sQal}pack-byVal-asDict  { $packerParms }  { \n$body \n }"
-    
+
     # generate unpack-byVal-asList
     set body $computeNext
     append body  "return  \[ list  " \\ \n
@@ -685,7 +704,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set f [open [structConverterPath $libAlias $structTypeName] w]
     puts $f $script
     close $f
-    
+
     return $script
 }
 
@@ -699,26 +718,26 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
     set binFn    [file join $::dlr::bindingDir $libAlias auto detectStructLayout]
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
     set headerFn [file join $::dlr::bindingDir $libAlias script includes.h]
-    
+
     # read header file of #include's.
     set hdr [open $headerFn r]
     set includes [subst -nobackslashes [read $hdr]]
     close $hdr
-    
+
     # generate C source code to extract metadata.
     foreach mName [get ${sQal}memberOrder] {
         append membCode "
-            printf(\"    {$mName} {size %zu offset %zu }\\n\", 
-                sizeof( a.$mName ), offsetof($typeName, $mName) );            
+            printf(\"    {$mName} {size %zu offset %zu }\\n\",
+                sizeof( a.$mName ), offsetof($typeName, $mName) );
         "
     }
     set src [open $cFn w]
     puts $src "
         #include <stddef.h>
         #include <stdio.h>
-        
+
         $includes
-        
+
         int main (int argc, char **argv) {
             $typeName a;
             printf(\"name {$typeName} size %zu members {\\n\", sizeof($typeName));
@@ -727,16 +746,16 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
         }
     "
     close $src
-    
+
     # compile and execute C code.
     exec {*}$::dlr::compiler  -o $binFn  $cFn
     set dic [exec $binFn]
-    
+
     # cache metadata in binding dir.
     set lay [open $layoutFn w]
     puts $lay $dic
     close $lay
-    
+
     return $dic
 }
 
@@ -769,9 +788,9 @@ proc ::dlr::struct::unpack-scriptPtr-free {scriptForm  structTypeName  pointerIn
 
 # #################  CONVERTERS  ####################################
 # converters are broken out into individual commands by data type.
-# that supports fast dispatch, and selective implementation of 
+# that supports fast dispatch, and selective implementation of
 # certain type conversions entirely in C.
-# those converters that are implemented in script should often rely on dlr packers, or 
+# those converters that are implemented in script should often rely on dlr packers, or
 # (slower) Jim's built-in pack feature.  from the Jim manual:
 #   pack varName value -intle|-intbe|-floatle|-floatbe|-str bitwidth ?bitoffset?
 #   unpack binvalue -intbe|-intle|-uintbe|-uintle|-floatbe|-floatle|-str bitpos bitwidth
@@ -779,3 +798,5 @@ proc ::dlr::struct::unpack-scriptPtr-free {scriptForm  structTypeName  pointerIn
 #todo: supply example packers and unpackers.
 
 ::dlr::initDlr
+
+#todo: replace [info] with [exists] throughout.
