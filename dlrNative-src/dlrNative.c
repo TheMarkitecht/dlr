@@ -580,8 +580,8 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 #if BUILD_GIZMO
 // returns pointer (scriptPtr integer) to a GIFunctionInfo for the given function name.
 // script is responsible for g_free'ing that pointer later.
-// this call is implemented in C instead of dlr because it inexplicably fails with
-// "assert typelib != null" when called by dlr.  but all parameters looked good in gdb then.
+// g_irepository_find_by_name is called in C instead of script because it inexplicably fails with
+// "assert typelib != null" when called by script.  but all parameters looked good in gdb then.
 //todo: script is responsible for g_free'ing that pointer later.
 int giFindFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum {

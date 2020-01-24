@@ -49,11 +49,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::directions           [list in out inOut]
     set ::dlr::directionFlags       [dict create in 1 out 2 inOut 3]
 
-    # GObject Introspection support.
-    set ::dlr::gi::enable           [exists -command ::dlr::native::giFindFunction]
-
     # aliases to pass through to native implementations of certain dlr system commands.
-    #todo: remove giCallToNative alias.
     foreach cmd {prepStructType prepMetaBlob callToNative giCallToNative
         createBufferVar copyToBufferVar addrOf allocHeap freeHeap} {
         alias  ::dlr::$cmd  ::dlr::native::$cmd
@@ -184,6 +180,14 @@ proc ::dlr::initDlr {} {
     # in the current version, all features work with either gcc or clang.
     set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]
     set ::dlr::compiler $::dlr::defaultCompiler
+
+    # GObject Introspection support.
+    set ::dlr::gi::enable           [exists -command ::dlr::native::giFindFunction]
+    if {$::dlr::gi::enable} {
+        # depends on a libgirepository-1.0.so symlink in the working dir.
+        #todo: loadLib with an empty path to indicate one already linked at compile time.  use that lib here instead of the extra dyn loaded one.
+        ::dlr::loadLib  keepMeta  gi  ./libgirepository-1.0.so
+    }
 }
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
@@ -240,7 +244,10 @@ proc ::dlr::typedef {existingType  name} {
 # getter/setter for the refreshMeta boolean flag.
 # this determines whether metadata and wrapper scripts will be regenerated (and cached again)
 # when function and type declarations are processed.
-# that's generally during script app startup.
+# or, if refreshMeta is false, the existing cached copies will be used instead.
+# note: if there is no existing cached copy of a given script, it will be regenerated
+# as if refreshMeta is true.
+# typically refreshMeta flag affects behavior during script app startup.
 proc ::dlr::refreshMeta {args} {
     return [set ::dlr::refreshMetaFlag {*}$args]
 }
@@ -395,7 +402,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     }
     set rMeta [selectTypeMeta $fullType]
 
-    if [refreshMeta] {
+    if {[refreshMeta] || ! [file readable [callWrapperPath $libAlias $fnName]]} {
         generateCallProc  $libAlias  $fnName  ::dlr::callToNative
     }
 
@@ -414,6 +421,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
         ${rQal}native  $rMeta  $orderNative  $typesMeta  $parmFlagsList
 }
 
+#todo: move this to ::gi and move its source to gi.tcl.
 # like declareCallToNative, but for GObject Introspection calls instead.
 # parameters and most other metdata are obtained directly from GI and don't
 # have to be declared by script.
@@ -496,7 +504,7 @@ proc ::dlr::gi::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  
     }
     set rMeta [selectTypeMeta $fullType]
 
-    if [refreshMeta] {
+    if {[refreshMeta] || ! [file readable [callWrapperPath $libAlias $fnName]]} {
         generateCallProc  $libAlias  $fnName  ::dlr::giCallToNative
     }
 
@@ -648,12 +656,12 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
 #todo: documentation
 proc ::dlr::declareStructType {scriptAction  libAlias  structTypeName  membersDescrip} {
     configureStructType  $libAlias  $structTypeName  $membersDescrip
-    if [refreshMeta] {
+    if {[refreshMeta] || ! [file readable [structConverterPath $libAlias $structTypeName]]} {
         detectStructLayout  $libAlias  $structTypeName
-    }
-    validateStructType  $libAlias  $structTypeName
-    if [refreshMeta] {
+        validateStructType  $libAlias  $structTypeName
         generateStructConverters  $libAlias  $structTypeName
+    } else {
+        validateStructType  $libAlias  $structTypeName
     }
     if {$scriptAction ni {applyScript noScript}} {
         error "Invalid script action: $scriptAction"
