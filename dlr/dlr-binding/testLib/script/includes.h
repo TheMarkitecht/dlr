@@ -18,7 +18,7 @@
 #include "[file join [file dirname [file dirname $::dlr::bindingDir]] testLib-src testLib.c]"
 
 /*
-    script-style substitutions are performed on this file, for feteching $ variables, and
+    script-style substitutions are performed on this file, for fetching $ variables, and
     executing [] bracketed commands.  that can help with locating the right file paths etc.
 
     backslash escapes are not substituted; they're passed on to C as-is.

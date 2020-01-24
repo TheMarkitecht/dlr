@@ -1,4 +1,6 @@
 
+#todo: move this file into gizmo's dlr-binding subtree.  make dlr find it by symlinking dlr.tcl in gizmo tree.
+
 ::dlr::typedef  int  gint
 
 ::dlr::typedef  u32  enum
