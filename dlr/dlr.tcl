@@ -27,8 +27,6 @@ set ::dlr::version [package require dlrNative]
 package provide dlr $::dlr::version
 #todo: get a fix for https://github.com/msteveb/jimtcl/issues/146  which corrupts version numbers here.
 
-#todo: detect gizmo pkg, and enable declaring gnome calls.
-
 # this is already called when the package is sourced.  no need for the app to call this.
 proc ::dlr::initDlr {} {
 
@@ -51,8 +49,12 @@ proc ::dlr::initDlr {} {
     set ::dlr::directions           [list in out inOut]
     set ::dlr::directionFlags       [dict create in 1 out 2 inOut 3]
 
+    # GObject Introspection support.
+    set ::dlr::gi::enable           [exists -command ::dlr::native::giFindFunction]
+
     # aliases to pass through to native implementations of certain dlr system commands.
-    foreach cmd {prepStructType prepMetaBlob callToNative callToGI
+    #todo: remove giCallToNative alias.
+    foreach cmd {prepStructType prepMetaBlob callToNative giCallToNative
         createBufferVar copyToBufferVar addrOf allocHeap freeHeap} {
         alias  ::dlr::$cmd  ::dlr::native::$cmd
     }
@@ -415,7 +417,11 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
 # like declareCallToNative, but for GObject Introspection calls instead.
 # parameters and most other metdata are obtained directly from GI and don't
 # have to be declared by script.
-proc ::dlr::declareCallToGI {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+proc ::dlr::gi::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+    if { ! $::dlr::gi::enable} {
+        error "GI not supported in this dlrNative build."
+    }
+
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
     # get GI callable info.
@@ -491,7 +497,7 @@ proc ::dlr::declareCallToGI {scriptAction  libAlias  returnTypeDescrip  fnName  
     set rMeta [selectTypeMeta $fullType]
 
     if [refreshMeta] {
-        generateCallProc  $libAlias  $fnName  ::dlr::callToGI
+        generateCallProc  $libAlias  $fnName  ::dlr::giCallToNative
     }
 
     if {$scriptAction ni {applyScript noScript}} {
@@ -594,6 +600,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     }
 
     # call native function.
+    #todo: see how much time is saved by specifying native callCommand's instead of aliases.  change at the 2 calls to generateCallProc.
     set rQal ${fQal}return::
     if {[get ${rQal}type] eq {::dlr::simple::void}} {
         append body "$callCommand  ${fQal}meta \n"

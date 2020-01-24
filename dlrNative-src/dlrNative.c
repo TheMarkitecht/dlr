@@ -578,15 +578,16 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 }
 
 #if BUILD_GIZMO
-//todo: delete; moved to script.
 // returns pointer (scriptPtr integer) to a GIFunctionInfo for the given function name.
 // script is responsible for g_free'ing that pointer later.
+// this call is implemented in C instead of dlr because it inexplicably fails with
+// "assert typelib != null" when called by dlr.  but all parameters looked good in gdb then.
 //todo: script is responsible for g_free'ing that pointer later.
-int findFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int giFindFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum {
         cmdIX = 0,
+        giRepoPtrIntValueIX,
         giNamespaceIX,
-        giVersionIX,
         giFunctionNameIX,
         argCount
     };
@@ -596,19 +597,23 @@ int findFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         return JIM_ERR;
     }
 
-    GError *error = NULL;
-    g_irepository_require(NULL, "GLib", "2.0", 0, &error);
-    if (error != NULL) {
-        //todo: error handling
-        g_error ("ERROR: %s\n", error->message);
+    jim_wide repo;
+    if (Jim_GetWide(itp, objv[giRepoPtrIntValueIX], &repo) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected repository pointer integer but got other data.", -1);
         return JIM_ERR;
     }
-    GIFunctionInfo* giInfo = (GIFunctionInfo*)g_irepository_find_by_name(NULL, "GLib", "assertion_message");
+
+    GIFunctionInfo* giInfo = (GIFunctionInfo*)g_irepository_find_by_name(
+        (GIRepository*)repo,
+        Jim_GetString(objv[giNamespaceIX], NULL),
+        Jim_GetString(objv[giFunctionNameIX], NULL) );
+
     if (giInfo == NULL) {
-        //todo: error handling
-        g_error ("ERROR: %s\n", "Could not find GLib.warn_message");
+        Jim_SetResultFormatted(itp, "Function '%#s' not found in GI namespace '%#s'.",
+            objv[giNamespaceIX], objv[giFunctionNameIX]);
         return JIM_ERR;
     }
+
     Jim_SetResultInt(itp, (jim_wide)giInfo);
     return JIM_OK;
 }
@@ -692,7 +697,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 }
 
 #ifdef BUILD_GIZMO
-int callToGI(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+int giCallToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum {
         cmdIX = 0,
         metaBlobVarNameIX,
@@ -1147,8 +1152,8 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::prepMetaBlob", prepMetaBlob, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
 #ifdef BUILD_GIZMO
-    Jim_CreateCommand(itp, "dlr::native::callToGI", callToGI, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::findFunction", findFunction, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::giCallToNative", giCallToNative, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::giFindFunction", giFindFunction, NULL, NULL);
 #endif
 
     // support features.

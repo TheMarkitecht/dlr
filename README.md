@@ -10,7 +10,7 @@ Legal stuff:  see below.
 
 **dlr** is an extension for [Jim Tcl](http://jim.tcl.tk/), the small-footprint Tcl interpreter.
 
-**dlr** may be easily pronounced as "dealer".
+**dlr** may be easily pronounced as "dealer".  It makes deals between Jim and native code.
 
 **dlr** binds your Jim scripts to libffi (Foreign Function Interface).
 It lets your Jim scripts dynamically call a shared object library (.so file) of your choosing,
