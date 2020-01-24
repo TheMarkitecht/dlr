@@ -182,8 +182,8 @@ proc ::dlr::initDlr {} {
     set ::dlr::compiler $::dlr::defaultCompiler
 
     # GObject Introspection support.
-    set ::dlr::gi::enable           [exists -command ::dlr::native::giFindFunction]
-    if {$::dlr::gi::enable} {
+    set ::gi::enable           [exists -command ::dlr::native::giFindFunction]
+    if {$::gi::enable} {
         # depends on a libgirepository-1.0.so symlink in the working dir.
         #todo: loadLib with an empty path to indicate one already linked at compile time.  use that lib here instead of the extra dyn loaded one.
         ::dlr::loadLib  keepMeta  gi  ./libgirepository-1.0.so
@@ -425,8 +425,8 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
 # like declareCallToNative, but for GObject Introspection calls instead.
 # parameters and most other metdata are obtained directly from GI and don't
 # have to be declared by script.
-proc ::dlr::gi::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
-    if { ! $::dlr::gi::enable} {
+proc ::gi::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
+    if { ! $::gi::enable} {
         error "GI not supported in this dlrNative build."
     }
 
@@ -505,7 +505,7 @@ proc ::dlr::gi::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  
     set rMeta [selectTypeMeta $fullType]
 
     if {[refreshMeta] || ! [file readable [callWrapperPath $libAlias $fnName]]} {
-        generateCallProc  $libAlias  $fnName  ::dlr::giCallToNative
+        generateCallProc  $libAlias  $fnName  ::giCallToNative
     }
 
     if {$scriptAction ni {applyScript noScript}} {
