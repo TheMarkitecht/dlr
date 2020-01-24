@@ -322,19 +322,107 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
 # or it could source the generated ones, and then modify or further wrap certain ones.
 #todo: more documentation
 proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
-    ::dlr::declareCallToNativeCore  ::dlr::callToNative  \
-        $scriptAction  $libAlias  $returnTypeDescrip  $fnName  $parmsDescrip
+    set fQal ::dlr::lib::${libAlias}::${fnName}::
+
+    # memorize metadata for parms.
+    set order [list]
+    set orderNative [list]
+    set typesMeta [list]
+    set parmFlagsList [list]
+    foreach parmDesc $parmsDescrip {
+        lassign $parmDesc  dir  passMethod  type  name  scriptForm
+        set pQal ${fQal}parm::${name}::
+
+        lappend order $name
+        lappend orderNative ${pQal}native
+
+        if {$dir ni $::dlr::directions} {
+            error "Invalid direction of flow was given."
+        }
+        set ${pQal}dir  $dir
+        lappend parmFlagsList $::dlr::directionFlags($dir)
+
+        if {$passMethod ni $::dlr::passMethods} {
+            error "Invalid passMethod was given."
+        }
+        set ${pQal}passMethod  $passMethod
+
+        set fullType [qualifyTypeName $type $libAlias]
+        set ${pQal}type  $fullType
+        set ${pQal}passType $( $passMethod eq {byPtr} ? {::dlr::simple::ptr} : $fullType )
+        lappend typesMeta [selectTypeMeta [get ${pQal}passType]]
+
+        validateScriptForm $fullType $scriptForm
+        set ${pQal}scriptForm  $scriptForm
+
+        # this version uses only byVal converters, and wraps them in script for byPtr.
+        # in future, the converters might be allowed to implement byPtr also, for more speed etc.
+        set ${pQal}packer   [converterName   pack $fullType byVal $scriptForm]
+        set ${pQal}unpacker [converterName unpack $fullType byVal $scriptForm]
+
+        if {$passMethod eq {byPtr}} {
+            set ${pQal}targetNativeName  ${pQal}targetNative
+        }
+    }
+    set ${fQal}parmOrder        $order
+    set ${fQal}parmOrderNative  $orderNative
+    # parmOrderNative is also derived and memorized here, along with the rest,
+    # in case the app needs to change it before using generateCallProc.
+
+    # memorize metadata for return value.
+    # it does not support other variable names for the native value, since that's generally hidden from scripts anyway.
+    # it's always "out byVal" but does support different types and scriptForms.
+    # it's not practical to support "out byPtr" here because there are many variations of
+    # how the pointer's target was allocated, who is responsible for freeing that ram, etc.
+    # instead that must be left to the script app to deal with.
+    set rQal ${fQal}return::
+    lassign $returnTypeDescrip  type scriptForm
+    set fullType [qualifyTypeName $type $libAlias]
+    set ${rQal}type  $fullType
+    validateScriptForm $fullType $scriptForm
+    set ${rQal}scriptForm  $scriptForm
+    set ${rQal}unpacker  [converterName unpack $fullType byVal $scriptForm]
+    # FFI requires padding the return buffer up to sizeof(ffi_arg).
+    # on a big endian machine, that means unpacking from a higher address.
+    set ${rQal}padding 0
+    if { ! [exists ${fullType}::size]} {
+        error "Type is not supported for function return value: $fullType"
+    }
+    if {[get ${fullType}::size] < $::dlr::simple::ffiArg::size && $::dlr::endian eq {be}} {
+        set ${rQal}padding  $($::dlr::simple::ffiArg::size - [get ${fullType}::size])
+    }
+    set rMeta [selectTypeMeta $fullType]
+
+    if [refreshMeta] {
+        generateCallProc  $libAlias  $fnName  ::dlr::callToNative
+    }
+
+    #todo: enhance all error messages throughout the project.
+    if {$scriptAction ni {applyScript noScript}} {
+        error "Invalid script action: $scriptAction"
+    }
+    if {$scriptAction eq {applyScript}} {
+        source [callWrapperPath  $libAlias  $fnName]
+    }
+
+    # prepare a metaBlob to hold dlrNative and FFI data structures.
+    # do this last, to prevent an ill-advised callToNative using half-baked metadata
+    # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
+    prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
+        ${rQal}native  $rMeta  $orderNative  $typesMeta  $parmFlagsList
 }
 
 # like declareCallToNative, but for GObject Introspection calls instead.
+# parameters and most other metdata are obtained directly from GI and don't
+# have to be declared by script.
 proc ::dlr::declareCallToGI {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
-    ::dlr::declareCallToNativeCore  ::dlr::callToGI  \
-        $scriptAction  $libAlias  $returnTypeDescrip  $fnName  $parmsDescrip
-}
-
-proc ::dlr::declareCallToNativeCore {callCommand  scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
-
     set fQal ::dlr::lib::${libAlias}::${fnName}::
+
+    # get GI callable info.
+
+    # query all metadata from GI callable.
+
+    # pass callable info to prepMetaBlob
 
     # memorize metadata for parms.
     set order [list]
@@ -403,10 +491,9 @@ proc ::dlr::declareCallToNativeCore {callCommand  scriptAction  libAlias  return
     set rMeta [selectTypeMeta $fullType]
 
     if [refreshMeta] {
-        generateCallProc  $libAlias  $fnName  $callCommand
+        generateCallProc  $libAlias  $fnName  ::dlr::callToGI
     }
 
-    #todo: enhance all error messages throughout the project.
     if {$scriptAction ni {applyScript noScript}} {
         error "Invalid script action: $scriptAction"
     }
