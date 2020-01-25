@@ -219,10 +219,10 @@ proc ::dlr::allLibAliases {} {
 
 # can be used to declare new simple type based on an existing one.
 proc ::dlr::typedef {existingType  name} {
-    if {[info exists ::dlr::simple::${name}::ffiTypeCode]} {
+    if {[exists ::dlr::simple::${name}::ffiTypeCode]} {
         error "Redeclared simple data type: $name"
     }
-    if { ! [info exists ::dlr::simple::${existingType}::ffiTypeCode]} {
+    if { ! [exists ::dlr::simple::${existingType}::ffiTypeCode]} {
         error "Simple data type doesn't exist: $existingType"
     }
     # FFI type codes map.
@@ -271,10 +271,10 @@ proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     }
     # here we assume that libs describe only structs, never simple types.
     set sType ::dlr::lib::${libAlias}::struct::${typeVarName}
-    if {[info exists ${sType}::meta]} {
+    if {[exists ${sType}::meta]} {
         return $sType
     }
-    if {[info exists ::dlr::simple::${typeVarName}::ffiTypeCode]} {
+    if {[exists ::dlr::simple::${typeVarName}::ffiTypeCode]} {
         return ::dlr::simple::$typeVarName
     }
     if {$notFoundAction eq {error}} {
@@ -580,7 +580,7 @@ proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
 
         lappend ${sQal}memberOrder $mName
 
-        if { ! [info exists ::dlr::simple::${mType}::ffiTypeCode]} {
+        if { ! [exists ::dlr::simple::${mType}::ffiTypeCode]} {
             error "Library '$libAlias' struct '$typ' member '$mName' declared type is unknown."
         }
         set mFullType ::dlr::simple::$mType ;# qualifyTypeName should not be used here.  a simple type is required.
@@ -800,4 +800,3 @@ proc ::dlr::struct::unpack-scriptPtr-free {scriptForm  structTypeName  pointerIn
 
 ::dlr::initDlr
 
-#todo: replace [info] with [exists] throughout.
