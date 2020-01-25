@@ -182,10 +182,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::compiler $::dlr::defaultCompiler
 
     # GObject Introspection support.
-    set ::gi::enable           [exists -command ::dlr::native::giCallToNative]
-    if {$::gi::enable} {
-        ::dlr::loadLib  keepMeta  gi  libgirepository-1.0.so
-    }
+    set ::dlr::giEnabled           [exists -command ::dlr::native::giCallToNative]
 }
 
 # ##########  DLR SYSTEM COMMANDS IMPLEMENTED IN SCRIPT  #############
