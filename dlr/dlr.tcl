@@ -184,9 +184,7 @@ proc ::dlr::initDlr {} {
     # GObject Introspection support.
     set ::gi::enable           [exists -command ::dlr::native::giCallToNative]
     if {$::gi::enable} {
-        # depends on a libgirepository-1.0.so symlink in the working dir.
-        #todo: loadLib with an empty path to indicate one already linked at compile time.  use that lib here instead of the extra dyn loaded one.
-        ::dlr::loadLib  keepMeta  gi  ./libgirepository-1.0.so
+        ::dlr::loadLib  keepMeta  gi  libgirepository-1.0.so
     }
 }
 
