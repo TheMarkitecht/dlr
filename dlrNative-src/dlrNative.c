@@ -583,48 +583,6 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     return JIM_OK;
 }
 
-#if BUILD_GIZMO
-// returns pointer (scriptPtr integer) to a GIFunctionInfo for the given function name.
-// script is responsible for g_free'ing that pointer later.
-// g_irepository_find_by_name is called in C instead of script because it inexplicably fails with
-// "assert typelib != null" when called by script.  but all parameters looked good in gdb then.
-//todo: script is responsible for g_free'ing that pointer later.
-int giFindFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
-    enum {
-        cmdIX = 0,
-        giRepoPtrIntValueIX,
-        giNamespaceIX,
-        giFunctionNameIX,
-        argCount
-    };
-
-    if (objc != argCount) {
-        Jim_SetResultString(itp, "Wrong # args.", -1);
-        return JIM_ERR;
-    }
-
-    jim_wide repo;
-    if (Jim_GetWide(itp, objv[giRepoPtrIntValueIX], &repo) != JIM_OK) {
-        Jim_SetResultString(itp, "Expected repository pointer integer but got other data.", -1);
-        return JIM_ERR;
-    }
-
-    GIFunctionInfo* giInfo = (GIFunctionInfo*)g_irepository_find_by_name(
-        (GIRepository*)repo,
-        Jim_GetString(objv[giNamespaceIX], NULL),
-        Jim_GetString(objv[giFunctionNameIX], NULL) );
-
-    if (giInfo == NULL) {
-        Jim_SetResultFormatted(itp, "Function '%#s' not found in GI namespace '%#s'.",
-            objv[giNamespaceIX], objv[giFunctionNameIX]);
-        return JIM_ERR;
-    }
-
-    Jim_SetResultInt(itp, (jim_wide)giInfo);
-    return JIM_OK;
-}
-#endif
-
 int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     enum {
         cmdIX = 0,
@@ -1159,7 +1117,6 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
 #ifdef BUILD_GIZMO
     Jim_CreateCommand(itp, "dlr::native::giCallToNative", giCallToNative, NULL, NULL);
-    Jim_CreateCommand(itp, "dlr::native::giFindFunction", giFindFunction, NULL, NULL);
 #endif
 
     // support features.

@@ -66,11 +66,7 @@ extern int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
 extern int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
 
 #ifdef BUILD_GIZMO
-
     extern int giCallToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]);
-
-    extern int giFindFunction(Jim_Interp* itp, int objc, Jim_Obj * const objv[]);
-
 #endif
 
 extern int packerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],

@@ -182,7 +182,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::compiler $::dlr::defaultCompiler
 
     # GObject Introspection support.
-    set ::gi::enable           [exists -command ::dlr::native::giFindFunction]
+    set ::gi::enable           [exists -command ::dlr::native::giCallToNative]
     if {$::gi::enable} {
         # depends on a libgirepository-1.0.so symlink in the working dir.
         #todo: loadLib with an empty path to indicate one already linked at compile time.  use that lib here instead of the extra dyn loaded one.
