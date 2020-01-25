@@ -50,7 +50,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::directionFlags       [dict create in 1 out 2 inOut 3]
 
     # aliases to pass through to native implementations of certain dlr system commands.
-    foreach cmd {prepStructType prepMetaBlob callToNative giCallToNative
+    foreach cmd {prepStructType prepMetaBlob callToNative
         createBufferVar copyToBufferVar addrOf allocHeap freeHeap} {
         alias  ::dlr::$cmd  ::dlr::native::$cmd
     }
@@ -337,7 +337,6 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     set order [list]
     set orderNative [list]
     set typesMeta [list]
-    set parmFlagsList [list]
     foreach parmDesc $parmsDescrip {
         lassign $parmDesc  dir  passMethod  type  name  scriptForm
         set pQal ${fQal}parm::${name}::
@@ -349,7 +348,6 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
             error "Invalid direction of flow was given."
         }
         set ${pQal}dir  $dir
-        lappend parmFlagsList $::dlr::directionFlags($dir)
 
         if {$passMethod ni $::dlr::passMethods} {
             error "Invalid passMethod was given."
@@ -418,7 +416,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     # do this last, to prevent an ill-advised callToNative using half-baked metadata
     # after an error preparing the metadata.  callToNative can't happen without this metaBlob.
     prepMetaBlob  ${fQal}meta  [::dlr::fnAddr  $fnName  $libAlias]  \
-        ${rQal}native  $rMeta  $orderNative  $typesMeta  $parmFlagsList
+        ${rQal}native  $rMeta  $orderNative  $typesMeta  {}
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
@@ -544,7 +542,9 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n }"
 
     # save the generated code to a file.
-    set f [open [callWrapperPath $libAlias $fnName] w]
+    set path [callWrapperPath $libAlias $fnName]
+    file mkdir [file dirname $path]
+    set f [open $path w]
     puts $f $procCmd
     close $f
 
@@ -702,7 +702,9 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
     # save the generated code to a file.
     set script [join $procs \n\n]
-    set f [open [structConverterPath $libAlias $structTypeName] w]
+    set path [structConverterPath $libAlias $structTypeName]
+    file mkdir [file dirname $path]
+    set f [open $path w]
     puts $f $script
     close $f
 

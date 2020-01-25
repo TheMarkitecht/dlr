@@ -490,6 +490,9 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         return JIM_ERR;
     }
 
+    Jim_Obj* flagsList = objv[parmFlagsListIX];
+    int isGIcall = Jim_ListLength(itp, flagsList) > 0;
+
     // create buffer variable for metablob.  first we must determine its final size.
     int nArgs = Jim_ListLength(itp, objv[nativeParmsListIX]);
     // in this calculation there's sizeof(ffi_type*) bytes of waste.  don't care.
@@ -501,13 +504,12 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     meta->signature[4] = 0; // string safety.
 
     // memorize function pointer.
-    jim_wide w = 0;
-    if (Jim_GetWide(itp, objv[fnPIX], &w) != JIM_OK) {
+    jim_wide fnP = 0;
+    if (Jim_GetWide(itp, objv[fnPIX], &fnP) != JIM_OK) {
         Jim_SetResultString(itp, "Expected function pointer but got other data.", -1);
         return JIM_ERR;
     }
-    meta->fn = (ffiFnP)w;
-    if (meta->fn == NULL) {
+    if (fnP == 0) {
         Jim_SetResultString(itp, "Null function pointer.", -1);
         return JIM_ERR;
     }
@@ -524,8 +526,7 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_SetResultString(itp, "List lengths don't match.", -1);
         return JIM_ERR;
     }
-    Jim_Obj* flagsList = objv[parmFlagsListIX];
-    if (nArgs != Jim_ListLength(itp, flagsList)) {
+    if (isGIcall && nArgs != Jim_ListLength(itp, flagsList)) {
         Jim_SetResultString(itp, "List lengths don't match.", -1);
         return JIM_ERR;
     }
@@ -535,24 +536,29 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         if (varToTypeP(itp, typeVar, &t[n]) != JIM_OK) return JIM_ERR;
     }
 #ifdef BUILD_GIZMO
-    meta->aFlags = (dlrFlagsT*)((u8*)meta + sizeof(metaBlobT) + nArgs * sizeof(ffi_type*)); // aflags array lies directly beyond the atypes array.
-    meta->nInArgs = 0;
-    meta->nOutArgs = 0;
-    for (int n = 0; n < nArgs; n++) {
-        jim_wide flags;
-        if (Jim_GetWide(itp, Jim_ListGetIndex(itp, flagsList, n), &flags) != JIM_OK) {
-            Jim_SetResultString(itp, "Expected parm flags integer but got other data.", -1);
-            return JIM_ERR;
+    if (isGIcall) {
+        meta->giInfo = (GIFunctionInfo*)fnP;
+        meta->aFlags = (dlrFlagsT*)((u8*)meta + sizeof(metaBlobT) + nArgs * sizeof(ffi_type*)); // aflags array lies directly beyond the atypes array.
+        meta->nInArgs = 0;
+        meta->nOutArgs = 0;
+        for (int n = 0; n < nArgs; n++) {
+            jim_wide flags;
+            if (Jim_GetWide(itp, Jim_ListGetIndex(itp, flagsList, n), &flags) != JIM_OK) {
+                Jim_SetResultString(itp, "Expected parm flags integer but got other data.", -1);
+                return JIM_ERR;
+            }
+            meta->aFlags[n] = (dlrFlagsT)flags;
+            if (flags & DIR_IN) meta->nInArgs++;
+            if (flags & DIR_OUT) meta->nOutArgs++;
         }
-        meta->aFlags[n] = (dlrFlagsT)flags;
-        if (flags & DIR_IN) meta->nInArgs++;
-        if (flags & DIR_OUT) meta->nOutArgs++;
+    } else {
+        meta->fn = (ffiFnP)fnP;
     }
-
 //todo: unref when this metablob destroyed.
 //    g_base_info_unref (base_info);
-// and the repo as well.
-
+// and the repo as well?
+#else
+    meta->fn = (ffiFnP)fnP;
 #endif
 
     // prep CIF.
