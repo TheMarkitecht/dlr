@@ -68,9 +68,10 @@ ffi_type * const ffiTypes[] = {
 #define FFI_TYPE_FINAL  FFI_TYPE_COMPLEX
 
 typedef enum {
-    DIR_IN = 1,
-    DIR_OUT = 2,
-    DIR_INOUT = DIR_IN | DIR_OUT
+    DF_DIR_IN = (1 << 0),
+    DF_DIR_OUT = (1 << 1),
+    DF_DIR_INOUT = DF_DIR_IN | DF_DIR_OUT,
+    DF_ARRAY = (1 << 3)
 } dlrFlagsT;
 
 typedef struct {
@@ -548,8 +549,8 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
                 return JIM_ERR;
             }
             meta->aFlags[n] = (dlrFlagsT)flags;
-            if (flags & DIR_IN) meta->nInArgs++;
-            if (flags & DIR_OUT) meta->nOutArgs++;
+            if (flags & DF_DIR_IN) meta->nInArgs++;
+            if (flags & DF_DIR_OUT) meta->nOutArgs++;
         }
     } else {
         meta->fn = (ffiFnP)fnP;
@@ -706,12 +707,12 @@ int giCallToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
             return JIM_ERR;
         }
         void* vBytes = (void*)Jim_GetString(v, NULL); // ensure string rep exists.
-        if (meta->aFlags[n] & DIR_IN) {
+        if (meta->aFlags[n] & DF_DIR_IN) {
             memcpy(&inArgs[inArgPos], vBytes, MIN(sizeof(GIArgument), v->length));
             inArgPos++;
         }
         //todo: check docs.  see if outArgs should be value copied like inArgs.
-        if (meta->aFlags[n] & DIR_OUT) {
+        if (meta->aFlags[n] & DF_DIR_OUT) {
             memcpy(&outArgs[outArgPos], vBytes, MIN(sizeof(GIArgument), v->length));
             outArgPos++;
         }

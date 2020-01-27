@@ -47,7 +47,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
 
     set ::dlr::directions           [list in out inOut]
-    set ::dlr::directionFlags       [dict create in 1 out 2 inOut 3]
+    set ::dlr::dlrFlags             [dict create dir_in 1 dir_out 2 dir_inOut 3 array 8]
 
     # aliases to pass through to native implementations of certain dlr system commands.
     foreach cmd {prepStructType prepMetaBlob callToNative
