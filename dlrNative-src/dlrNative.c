@@ -632,8 +632,7 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         // we'll let it slide here if the script allocated just enough bytes for the value,
         // and no extra byte for a null terminator.  not all parms are strings.
         if (argPtrs[n] == NULL || v->length < meta->cif.arg_types[n]->size) {
-            Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %s",
-                Jim_GetString(varName, NULL));
+            Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %#s", varName);
             return JIM_ERR;
         }
     }
@@ -721,8 +720,7 @@ int giCallToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         //// we'll let it slide here if the script allocated just enough bytes for the value,
         //// and no extra byte for a null terminator.  not all parms are strings.
         //if (argPtrs[n] == NULL || v->length < meta->cif.arg_types[n]->size) {
-            //Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %s",
-                //Jim_GetString(varName, NULL));
+            //Jim_SetResultFormatted(itp, "Inadequate buffer in argument variable: %#s", varName);
             //return JIM_ERR;
         //}
     }
@@ -779,13 +777,8 @@ int packerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int requiredLen = offset + sizeBytes;
 
     Jim_Obj* v = Jim_GetVariable(itp, objv[pk_packVarNameIX], JIM_NONE);
-    if (v == NULL) {
+    if (v == NULL || v->length < requiredLen) {
         if (createBufferVarNative(itp, objv[pk_packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
-    } else {
-        if (v->length < requiredLen) {
-            Jim_SetResultString(itp, "Inadequate buffer in variable.", -1);
-            return JIM_ERR;
-        }
     }
     *bufP = (void*)((u8*)v->bytes + offset);
 
