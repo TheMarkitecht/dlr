@@ -121,7 +121,7 @@ declareCallToNative  applyScript  testLib  {ptr asInt}  mulMalloc  {
 }
 proc  ::dlr::lib::testLib::mulMalloc::callManaged {st factor} {
     # this is an additional little wrapper proc to manage memory according to the app's needs.
-    return [::dlr::struct::unpack-scriptPtr-free  asList  ::dlr::lib::testLib::struct::quadT  \
+    return [::dlr::lib::testLib::struct::quadT::unpack-scriptPtr-asList-free    \
         [::dlr::lib::testLib::mulMalloc::call $st $factor]]
 }
 

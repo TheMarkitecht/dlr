@@ -327,6 +327,7 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm} {
 # per the app's needs, it could instead define its own support procs (noScript).
 # or it could source the generated ones, and then modify or further wrap certain ones.
 #todo: more documentation
+#todo: eliminate handwritten callManaged wrappers.  for out/inout byPtr, support another word of parmDescrip and returnTypeDescrip:  memoryAction.  if that's set, e.g. 'free', call e.g. unpack-scriptPtr-asString-free.
 proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnName  parmsDescrip} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
@@ -696,6 +697,11 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     }
     append body  \]  \n
     lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n }"
+
+    # alias some more utility functions for this type.
+    foreach scriptForm $::dlr::struct::scriptForms {
+        lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}-free  ::dlr::struct::unpack-scriptPtr-free  $scriptForm  [string trimright $sQal :]"
+    }
 
     # save the generated code to a file.
     set script [join $procs \n\n]
