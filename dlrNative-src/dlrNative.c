@@ -752,6 +752,25 @@ int giCallToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
 
     return JIM_OK;
 }
+
+// g_free has to be made available here, for GI calls' memory management to use.
+int giFreeHeap(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum {
+        cmdIX = 0,
+        ptrIntValueIX,
+        argCount
+    };
+
+    jim_wide ptr;
+    if (Jim_GetWide(itp, objv[ptrIntValueIX], &ptr) != JIM_OK) {
+        Jim_SetResultString(itp, "Expected pointer integer but got other data.", -1);
+        return JIM_ERR;
+    }
+
+    g_free((gpointer)ptr);
+    return JIM_OK;
+}
+
 #endif
 
 
@@ -1120,6 +1139,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::callToNative", callToNative, NULL, NULL);
 #ifdef BUILD_GIZMO
     Jim_CreateCommand(itp, "dlr::native::giCallToNative", giCallToNative, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::giFreeHeap", giFreeHeap, NULL, NULL);
 #endif
 
     // support features.
