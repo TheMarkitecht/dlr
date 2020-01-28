@@ -178,7 +178,9 @@ proc ::dlr::initDlr {} {
 
     # compiler support.
     # in the current version, all features work with either gcc or clang.
-    set ::dlr::defaultCompiler [list  gcc  --std=c11  -O0  -I. ]
+    set ::dlr::defaultCompiler {
+        exec  gcc  --std=c11  -O0  -I.  -o $binFn  $cFn
+    }
     set ::dlr::compiler $::dlr::defaultCompiler
 
     # GObject Introspection support.
@@ -746,7 +748,7 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
     close $src
 
     # compile and execute C code.
-    exec {*}$::dlr::compiler  -o $binFn  $cFn
+    eval $::dlr::compiler
     set dic [exec $binFn]
 
     # cache metadata in binding dir.
