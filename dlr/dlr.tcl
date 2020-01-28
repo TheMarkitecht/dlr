@@ -718,6 +718,9 @@ proc ::dlr::detectStructLayout {libAlias  typeName} {
     set binFn    [file join $::dlr::bindingDir $libAlias auto detectStructLayout]
     set layoutFn [file join $::dlr::bindingDir $libAlias auto $typeName.struct]
     set headerFn [file join $::dlr::bindingDir $libAlias script includes.h]
+    file mkdir [file dirname $cFn]
+    file mkdir [file dirname $binFn]
+    file mkdir [file dirname $layoutFn]
 
     # read header file of #include's.
     set hdr [open $headerFn r]
