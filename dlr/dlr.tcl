@@ -789,6 +789,13 @@ proc ::dlr::struct::unpack-scriptPtr-free {scriptForm  structTypeName  pointerIn
     return $unpackedData
 }
 
+# equivalent to ascii::unpack-scriptPtr-asString followed by freeHeap.
+proc ::dlr::simple::ascii::unpack-scriptPtr-asString-free {pointerIntValue} {
+    set unpackedData [::dlr::simple::ascii::unpack-scriptPtr-asString $pointerIntValue]
+    ::dlr::freeHeap $pointerIntValue
+    return $unpackedData
+}
+
 # #################  CONVERTERS  ####################################
 # converters are broken out into individual commands by data type.
 # that supports fast dispatch, and selective implementation of

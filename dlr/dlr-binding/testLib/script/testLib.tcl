@@ -1,23 +1,23 @@
 #  "dlr" - Dynamic Library Redux
 #  Copyright 2020 Mark Hubbard, a.k.a. "TheMarkitecht"
 #  http://www.TheMarkitecht.com
-#   
+#
 #  Project home:  http://github.com/TheMarkitecht/dlr
 #  dlr is an extension for Jim Tcl (http://jim.tcl.tk/)
 #  dlr may be easily pronounced as "dealer".
-#   
+#
 #  This file is part of dlr.
-#   
+#
 #  dlr is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
-#   
+#
 #  dlr is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Lesser General Public License for more details.
-#   
+#
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -89,13 +89,10 @@ declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
 }
 proc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged {clear cryptedVar step} {
     # this is an additional little wrapper proc to manage memory according to the app's needs.
-    # it would run faster if we totally replaced ::dlr::lib::testLib::cryptAsciiMalloc::call
-    # with this proc, but this way instead demonstrates the easiest binding development.
     upvar 1 $cryptedVar crypted
     set cryptedP 0
     ::dlr::lib::testLib::cryptAsciiMalloc::call $clear cryptedP $step
-    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
-    ::dlr::freeHeap $cryptedP
+    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString-free  $cryptedP]
 }
 
 declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
@@ -104,10 +101,11 @@ declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
 }
 proc  ::dlr::lib::testLib::cryptAsciiRtn::callManaged {clear step} {
     # this is an additional little wrapper proc to manage memory according to the app's needs.
-    set cryptedP [::dlr::lib::testLib::cryptAsciiRtn::call $clear $step]
-    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString $cryptedP]
-    ::dlr::freeHeap $cryptedP
-    return $crypted
+    # it would run faster if we totally replaced ::dlr::lib::testLib::cryptAsciiRtn::call
+    # with this proc, and if we explicitly freed cryptedP at the end, not calling another proc.
+    # but this way instead demonstrates the easiest binding development.
+    return [::dlr::simple::ascii::unpack-scriptPtr-asString-free  \
+        [::dlr::lib::testLib::cryptAsciiRtn::call $clear $step]]
 }
 
 # ############ mulPtr and its types ######################################
