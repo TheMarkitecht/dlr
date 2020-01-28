@@ -637,6 +637,15 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         }
     }
 
+    /* how to trace certain native calls.
+    if (meta->fn == (ffiFnP)g_irepository_require) {
+        printf("require     %p '%s' '%s'\n", *(void**)argPtrs[0], *(char**)argPtrs[1], *(char**)argPtrs[2]);
+    }
+    if (meta->fn == (ffiFnP)g_irepository_get_n_infos) {
+        printf("get_n_infos %p '%s'\n", *(void**)argPtrs[0], *(char**)argPtrs[1]);
+    }
+    */
+
     if (meta->cif.rtype == &ffi_type_void) {
         // arrange space for a junk return value, just in case libffi decides to write one.
         ffi_arg rtn;
