@@ -28,6 +28,7 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef uint8_t u8;
 typedef uint32_t u32;

@@ -168,6 +168,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
     # scripts can use $::dlr::null instead of packing their own nulls.
     # packed nulls are typically not needed, but might be useful to speed up handwritten converters.
+#todo: rename to packedNull.
     ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
@@ -342,7 +343,6 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
     foreach parmDesc $parmsDescrip {
         lassign $parmDesc  dir  passMethod  type  name  scriptForm  memAction
         set pQal ${fQal}parm::${name}::
-
         lappend order $name
 
         if {$dir ni $::dlr::directions} {
@@ -357,7 +357,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnTypeDescrip  fnNa
 
         set fullType [qualifyTypeName $type $libAlias]
         set ${pQal}type  $fullType
-        set ${pQal}passType $( $passMethod eq {byPtr} ? {::dlr::simple::ptr} : $fullType )
+        set ${pQal}passType $(  $passMethod eq {byVal}  ?  $fullType  :  {::dlr::simple::ptr} )
         lappend typesMeta [selectTypeMeta [get ${pQal}passType]]
 
         validateScriptForm $fullType $scriptForm
@@ -499,6 +499,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     set procArgs [list]
     set procFormalParms [list]
     set body {}
+    #if {$fnName eq {cryptAsciiMalloc}} {append body "\n debugscript begin\n"}
     foreach  parmBare [get ${fQal}parmOrder] {
         # parmBare is the simple name of the parameter, such as "radix".
 
@@ -782,6 +783,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
     # alias some more utility functions for this type.
     foreach scriptForm $::dlr::struct::scriptForms {
+        lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}       ::dlr::struct::unpack-scriptPtr  $scriptForm  [string trimright $sQal :]"
         lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}-free  ::dlr::struct::unpack-scriptPtr-free  $scriptForm  [string trimright $sQal :]"
     }
 
