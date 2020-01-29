@@ -83,18 +83,12 @@ declareCallToNative  applyScript  testLib  {void}  cryptAscii  {
 }
 
 declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
-    {in     byPtr   ascii   clear   asString}
-    {out    byPtr   ptr     crypted asInt}
-    {in     byVal   int     step    asInt}
-}
-proc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged {clear cryptedVar step} {
-    # this is an additional little wrapper proc to manage memory according to the app's needs.
-    upvar 1 $cryptedVar crypted
-    set cryptedP 0
-    ::dlr::lib::testLib::cryptAsciiMalloc::call $clear cryptedP $step
-    set crypted [::dlr::simple::ascii::unpack-scriptPtr-asString-free  $cryptedP]
+    {in     byPtr       ascii   clear   asString        }
+    {out    byPtrPtr    ascii   crypted asString    free}
+    {in     byVal       int     step    asInt           }
 }
 
+#todo: support return e.g. byPtr ascii asString free.
 declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
     {in     byPtr   ascii   clear   asString}
     {in     byVal   int     step    asInt}
@@ -110,6 +104,7 @@ proc  ::dlr::lib::testLib::cryptAsciiRtn::callManaged {clear step} {
 
 # ############ mulPtr and its types ######################################
 
+#todo: add another test like mulPtr, asNative.
 declareCallToNative  applyScript  testLib  {void}  mulPtr  {
     {inOut  byPtr   quadT   st      asList}
     {in     byVal   int     factor  asInt}
