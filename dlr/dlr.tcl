@@ -489,12 +489,16 @@ proc ::dlr::nullFlagValue {scriptForm} {
 proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     set fQal ::dlr::lib::${libAlias}::${fnName}::
 
+    # to generate readable code:
+    # start and end each append operation with a newline.
+    # after each leading newline, put 4 spaces, plus 4 more for each enclosing brace block.
+    # no spaces of indentation before a 'proc', or the matching close-brace of its body.
+    # rely on the final regsub to collapse blank lines.
+
     # call packers to pack "in" parms.
     set procArgs [list]
     set procFormalParms [list]
     set body {}
-    set memInitBody {}
-    set memFinalBody {}
     foreach  parmBare [get ${fQal}parmOrder] {
         # parmBare is the simple name of the parameter, such as "radix".
 
@@ -521,11 +525,14 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         # this must be done, even for "out" parms, to ensure buffer space is available
         # before the call.  that makes sense because ordinary C code always does that.
         set packer [converterName pack $type byVal $scriptForm {}]
-        append body "$packer  $targetNative  \$$parmBare \n"
+        append body "\n    $packer  $targetNative  \$$parmBare \n"
         if {$passMethod in {byPtr byPtrPtr}} {
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
-            set pBody "::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \[ ::dlr::addrOf  $targetNative \] \n"
+            set pBody "
+        set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
+        ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
+            "
             set pBodyNull "set  $ptrNative  \$::dlr::null \n"
             # pass by pointer-to-pointer-to-target requires a third native var.
             # its packing code will be inserted next to that of the first-degree pointer below.
@@ -537,13 +544,13 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
             }
             # check for the null pointer flag at run time.
             append body "
-                if { [nullTestExpression $parmBare $scriptForm] } {
-                    $pBodyNull
-                    $ppBodyNull
-                } else {
-                    $pBody
-                    $ppBody
-                }
+    if { [nullTestExpression $parmBare $scriptForm] } {
+        $pBodyNull
+        $ppBodyNull
+    } else {
+        $pBody
+        $ppBody
+    }
             "
         }
     }
@@ -552,9 +559,9 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     #todo: see how much time is saved by specifying native callCommand's instead of aliases.  change at the 2 calls to generateCallProc.
     set rQal ${fQal}return::
     if {[get ${rQal}type] eq {::dlr::simple::void}} {
-        append body "$callCommand  ${fQal}meta \n"
+        append body "\n    $callCommand  ${fQal}meta \n"
     } else {
-        append body "set  ${rQal}native  \[ $callCommand  ${fQal}meta \] \n"
+        append body "\n    set  ${rQal}native  \[ $callCommand  ${fQal}meta \] \n"
     }
 
     # call unpackers to unpack "out" parms.
@@ -578,10 +585,10 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
             if {$passMethod eq {byPtrPtr}} {
                 if {[isMemManagedType $type]} {
                     # pointer given out by the native function must be unpacked first.
-                    append body "set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative \] \n"
+                    append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative \] \n"
                     # these types have optimized unpackers for byPtr.
                     set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                    append body "set  $procArg  \[ $unpacker  \$$ptr \] \n"
+                    append body "\n    set  $procArg  \[ $unpacker  \$$ptr \] \n"
                 } else {
                     error "Type '$type' does not support '$dir' '$passMethod'."
                 }
@@ -589,28 +596,27 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
                 if {[isMemManagedType $type]} {
                     # these types have optimized unpackers for byPtr.
                     set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                    append body "set  $procArg  \[ $unpacker  \$$ptrNative \] \n"
+                    append body "\n    set  $procArg  \[ $unpacker  \$addrOf$procArg \] \n"
                 } else {
                     set unpacker [converterName unpack $type byVal $scriptForm {}]
-                    append body "set  $procArg  \[ $unpacker  \$$targetNative \] \n"
+                    append body "\n    set  $procArg  \[ $unpacker  \$$targetNative \] \n"
                 }
             } else {
                 set unpacker [converterName unpack $type byVal $scriptForm {}]
-                append body "set  $procArg  \[ $unpacker  \$$targetNative \] \n"
+                append body "\n    set  $procArg  \[ $unpacker  \$$targetNative \] \n"
             }
         }
     }
 
     # unpack return value.
     if {[get ${rQal}type] ne {::dlr::simple::void}} {
-        append body "return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
+        append body "\n    return  \[ [get ${rQal}unpacker] \$${rQal}native \$${rQal}padding \] \n"
     }
 
     # compose "proc" commands.
-    set procCmd "
-proc  ${fQal}call  { $procFormalParms }  { \n$body \n }
-proc  ${fQal}callManaged  { $procFormalParms }  { \n$memInitBody \n$body \n$memFinalBody \n }
-    "
+    set procCmd "proc  ${fQal}call  { $procFormalParms }  { \n$body \n} "
+    # collapse multiple newlines into one, along with any preceding whitespace.
+    regsub -all {([ ]*\n)+} $procCmd \n procCmd
 
     # save the generated code to a file.
     set path [callWrapperPath $libAlias $fnName]
@@ -719,66 +725,71 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     #todo: support asNative by emitting a plain "set".  support for the struct and for its members.
 
     set computeNext "
-        if { \$nextOffsetVarName ne {}} {
-            upvar \$nextOffsetVarName next
-            set next \$( \$offsetBytes + \$${sQal}size )
-        } \n"
+    if { \$nextOffsetVarName ne {}} {
+        upvar \$nextOffsetVarName next
+        set next \$( \$offsetBytes + \$${sQal}size )
+    }
+    "
 
     # generate pack-byVal-asList
     set body "
-        lassign \$unpackedData  [join $memberTemps {  }]
-        ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    lassign \$unpackedData  [join $memberTemps {  }]
+    ::dlr::createBufferVar  \$packVarName  \$${sQal}size
+    "
     foreach  mName [get ${sQal}memberOrder]  mTemp $memberTemps  {
         set mQal ${sQal}member::${mName}::
         set packer [converterName   pack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "$packer  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
+        append body "\n    $packer  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
         # that could run faster (maybe?) if it placed the offset integer into the script
         # instead of fetching it from metadata at run time.  then again, it might not.
         # it would definitely be harder to read and maintain with the magic numbers,
         # and more likely to fail after the struct is recompiled.
     }
     append body $computeNext
-    lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n }"
+    lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n}"
 
     # generate pack-byVal-asDict
-    set body "::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    set body "\n    ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set packer [converterName   pack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "$packer  \$packVarName  \$unpackedData($mName)  \$( \$offsetBytes + \$${mQal}offset ) \n"
+        append body "\n    $packer  \$packVarName  \$unpackedData($mName)  \$( \$offsetBytes + \$${mQal}offset ) \n"
     }
     append body $computeNext
-    lappend procs "proc  ${sQal}pack-byVal-asDict  { $packerParms }  { \n$body \n }"
+    lappend procs "proc  ${sQal}pack-byVal-asDict  { $packerParms }  { \n$body \n}"
 
     # generate unpack-byVal-asList
     set body $computeNext
-    append body  "return  \[ list  " \\ \n
+    append body  "\n    return  \[ list  " \\ \n
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set unpacker [converterName  unpack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body " \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
+        append body "\n        \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
     }
-    append body  \]  \n
-    lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n }"
+    append body "\n    \] \n"
+    lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n}"
 
     # generate unpack-byVal-asDict
     set body $computeNext
-    append body  "return  \[ dict create  " \\ \n
+    append body  "\n    return  \[ dict create  " \\ \n
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set unpacker [converterName  unpack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body " $mName \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
+        append body "\n        $mName \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
     }
-    append body  \]  \n
-    lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n }"
+    append body "\n    \] \n"
+    lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n}"
 
     # alias some more utility functions for this type.
     foreach scriptForm $::dlr::struct::scriptForms {
         lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}-free  ::dlr::struct::unpack-scriptPtr-free  $scriptForm  [string trimright $sQal :]"
     }
 
-    # save the generated code to a file.
+    # collapse multiple newlines into one, along with any preceding whitespace.
     set script [join $procs \n\n]
+    regsub -all {([ ]*\n)+} $script \n script
+
+    # save the generated code to a file.
     set path [structConverterPath $libAlias $structTypeName]
     file mkdir [file dirname $path]
     set f [open $path w]

@@ -1,23 +1,23 @@
 #  "dlr" - Dynamic Library Redux
 #  Copyright 2020 Mark Hubbard, a.k.a. "TheMarkitecht"
 #  http://www.TheMarkitecht.com
-#   
+#
 #  Project home:  http://github.com/TheMarkitecht/dlr
 #  dlr is an extension for Jim Tcl (http://jim.tcl.tk/)
 #  dlr may be easily pronounced as "dealer".
-#   
+#
 #  This file is part of dlr.
-#   
+#
 #  dlr is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU Lesser General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
-#   
+#
 #  dlr is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Lesser General Public License for more details.
-#   
+#
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with dlr.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -54,7 +54,7 @@ puts "int::bits=$::dlr::simple::int::bits  long::bits=$::dlr::simple::long::bits
 ::dlr::simple::int::pack-byVal-asInt   myLocal  89
 assert {[::dlr::simple::int::unpack-byVal-asInt  $myLocal] == 89}
 
-# load the library binding for testLib.  
+# load the library binding for testLib.
 set metaAction [lindex $::argv 0]
 assert {[llength [::dlr::allLibAliases]] == 0}
 ::dlr::loadLib  $metaAction  testLib  [file join $::appDir testLib-src testLib.so]
@@ -70,7 +70,7 @@ if [::dlr::refreshMeta] {
 # dump the metadata structure in ram.  this is big.
 #puts [join [lsort [info vars ::dlr::*]] \n]
 
-# speed benchmark.  test conditions very comparable to bench-0.1.tcl.  
+# speed benchmark.  test conditions very comparable to bench-0.1.tcl.
 # difference is under 1%, far less than the background noise from the OS multitasking.
 if {$benchReps ne {}} {
     set benchReps $(int($benchReps))
@@ -82,13 +82,13 @@ if {$benchReps ne {}} {
     }
     set endP $::dlr::null
     ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
-    bench pack3 $($benchReps / 10) {   
+    bench pack3 $($benchReps / 10) {
         ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
         ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endPP [::dlr::addrOf ::dlr::lib::testLib::strtolTest::parm::endP]
         ::dlr::simple::int::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::radix  10
     }
     bench callToNative $benchReps {
-        ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta  
+        ::dlr::callToNative  ::dlr::lib::testLib::strtolTest::meta
     }
     exit 0
 }
@@ -103,7 +103,7 @@ loop attempt 0 3 {
     set resultUnpacked [strtol  $myNum  endP  10]
     #puts $myNum=$resultUnpacked
     assert {$resultUnpacked == $myNum}
-    # can't do reliable pointer arithmetic to verify new value of endP, 
+    # can't do reliable pointer arithmetic to verify new value of endP,
     # due to copies being made during packing.
     # instead just verify it's not zero, and it's within about 100 MB of strP, meaning
     # it's somewhere on the same heap as strP.
@@ -200,7 +200,7 @@ loop attempt 2 5 {
     cryptAscii txt $attempt
     assert {$txt eq $correct}
 }
-alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::callManaged
+alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::call
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
@@ -208,6 +208,7 @@ loop attempt 2 5 {
         scan $ch %c code
         append correct [format %c $($code + $attempt)]
     }
+    set crypted {}
     cryptAsciiMalloc $clear crypted $attempt
     assert {$crypted eq $correct}
 }
@@ -243,7 +244,7 @@ loop attempt 2 5 {
     assert {$d == 13 * $attempt}
 }
 
-# verify "constant" dlr::null was not overwritten since startup.  
+# verify "constant" dlr::null was not overwritten since startup.
 # always do this test last of all.
 assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::null] == 0}
 
