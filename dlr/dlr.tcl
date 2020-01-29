@@ -166,17 +166,19 @@ proc ::dlr::initDlr {} {
 
     # pointer support.
     set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
-    # scripts can use $::dlr::null instead of packing their own nulls.
-    # packed nulls are typically not needed, but might be useful to speed up handwritten converters.
-#todo: rename to packedNull.
-    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::null  0
+
+    # scripts can use $::dlr::packedNull instead of packing their own nulls.
+    # packed nulls are typically not needed in app script, but might be useful
+    # to speed up handwritten converters.
+    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::packedNull  0
+
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
-    set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
-#todo: change to _#_nullPtrFlag_#_
+    set ::dlr::nullPtrFlag          _#_nullPtrFlag_#_
 
     # string support.
     set ::dlr::stringTypes [list ::dlr::simple::ascii]
+    #todo: support more encodings, like utf8.  add them to stringTypes.
 
     # compiler support.
     # in the current version, all features work with either gcc or clang.
@@ -537,14 +539,14 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
         ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
             "
-            set pBodyNull "set  $ptrNative  \$::dlr::null \n"
+            set pBodyNull "set  $ptrNative  \$::dlr::packedNull \n"
             # pass by pointer-to-pointer-to-target requires a third native var.
             # its packing code will be inserted next to that of the first-degree pointer below.
             set ppBody {}
             set ppBodyNull {}
             if {$passMethod eq {byPtrPtr}} {
                 set ppBody "::dlr::simple::ptr::pack-byVal-asInt  $ptrPtrNative  \[ ::dlr::addrOf  $ptrNative \]"
-                set ppBodyNull "set  $ptrPtrNative  \$::dlr::null \n"
+                set ppBodyNull "set  $ptrPtrNative  \$::dlr::packedNull \n"
             }
             # check for the null pointer flag at run time.
             append body "

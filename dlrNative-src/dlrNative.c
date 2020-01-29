@@ -94,8 +94,8 @@ typedef struct {
 } metaBlobT;
 static const char METABLOB_SIGNATURE[] = "meta";
 
-#define  DLR_NULL_PTR_FLAG  "::dlr::nullPtrFlag"
-#define  DLR_NULL_PTR_FLAG_STRLEN  (18)
+#define  DLR_NULL_PTR_FLAG  "_#_nullPtrFlag_#_"
+#define  DLR_NULL_PTR_FLAG_STRLEN  (17)
 #define  setResultNullPtrFlag(itp)  Jim_SetResultString(itp, DLR_NULL_PTR_FLAG, DLR_NULL_PTR_FLAG_STRLEN);
 
 /* **********************  EXECUTABLE CODE BELOW  ***************************** */
