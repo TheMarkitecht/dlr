@@ -173,6 +173,7 @@ proc ::dlr::initDlr {} {
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
     set ::dlr::nullPtrFlag          ::dlr::nullPtrFlag
+#todo: change to _#_nullPtrFlag_#_
 
     # string support.
     set ::dlr::stringTypes [list ::dlr::simple::ascii]
@@ -526,11 +527,13 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         # this must be done, even for "out" parms, to ensure buffer space is available
         # before the call.  that makes sense because ordinary C code always does that.
         set packer [converterName pack $type byVal $scriptForm {}]
-        append body "\n    $packer  $targetNative  \$$parmBare \n"
-        if {$passMethod in {byPtr byPtrPtr}} {
+        if {$passMethod eq {byVal}} {
+            append body "\n    $packer  $targetNative  \$$parmBare \n"
+        } else {
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
             set pBody "
+        $packer  $targetNative  \$$parmBare
         set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
         ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
             "
