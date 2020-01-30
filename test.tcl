@@ -250,6 +250,21 @@ loop attempt 2 5 {
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
+alias  mulPtrNat  ::dlr::lib::testLib::mulPtrNat::call
+::dlr::lib::testLib::struct::quadT::pack-byVal-asList  st  [list 10 11 12 13]
+lassign {10 11 12 13} ca cb cc cd
+loop attempt 2 5 {
+    mulPtrNat st $attempt
+    set ca $( $ca * $attempt )
+    set cb $( $cb * $attempt )
+    set cc $( $cc * $attempt )
+    set cd $( $cd * $attempt )
+}
+lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $st]  a b c d
+assert {$a == $ca}
+assert {$b == $cb}
+assert {$c == $cc}
+assert {$d == $cd}
 
 puts "*** ALL TESTS PASS ***"
 

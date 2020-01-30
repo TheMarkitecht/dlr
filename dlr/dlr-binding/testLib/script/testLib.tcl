@@ -100,7 +100,6 @@ declareCallToNative  applyScript  testLib  {byPtr ascii asString free}  cryptAsc
 
 # ############ mulPtr and its types ######################################
 
-#todo: add another test like mulPtr, asNative.
 declareCallToNative  applyScript  testLib  {void}  mulPtr  {
     {inOut  byPtr   quadT   st      asList  ignore  }
     {in     byVal   int     factor  asInt           }
@@ -114,5 +113,10 @@ declareCallToNative  applyScript  testLib  {void}  mulMalloc  {
 declareCallToNative  applyScript  testLib  {byPtr quadT asList free}  mulMallocRtn  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
+}
+
+declareCallToNative  applyScript  testLib  {void}  mulPtrNat  {
+    {inOut  byPtr   quadT   st      asNative  ignore  }
+    {in     byVal   int     factor  asInt             }
 }
 

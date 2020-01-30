@@ -617,7 +617,8 @@ int callToNative(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         // look up the designated variable, in a global context.
         // using internalRep of the parms list here for a little more speed.
         Jim_Obj* varName = meta->nativeParmsList->internalRep.listValue.ele[n];
-        Jim_Obj* v = Jim_GetGlobalVariable(itp, varName, JIM_NONE);
+        // this must use Jim_GetVariable(), not Jim_GetGlobalVariable(), to support asNative.
+        Jim_Obj* v = Jim_GetVariable(itp, varName, JIM_NONE);
         if (v == NULL) {
             Jim_SetResultFormatted(itp, "Native argument variable not found: %#s", varName);
             return JIM_ERR;

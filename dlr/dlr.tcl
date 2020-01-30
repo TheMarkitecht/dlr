@@ -46,7 +46,7 @@ proc ::dlr::initDlr {} {
     ::dlr::refreshMeta              0
     set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
 
-    set ::dlr::directions           [list in out inOut]
+    set ::dlr::directions           [list in out inOut] ;# the user-specified directions of data flow.  these are for parms only; does not include "return" direction for function return values.
     set ::dlr::dlrFlags             [dict create dir_in 1 dir_out 2 dir_inOut 3 array 8]
 
     # aliases to pass through to native implementations of certain dlr system commands.
@@ -129,12 +129,12 @@ proc ::dlr::initDlr {} {
     #
     # most simple types are integer scalars, so blanket all types with asInt.
     foreach v [info vars ::dlr::simple::*::ffiTypeCode] {
-        set [namespace parent $v]::scriptForms  [list asInt asNative]
+        set [namespace parent $v]::scriptForms  [list asInt]
     }
     # overwrite that with a few special cases such as floating point and struct.
     set ::dlr::struct::scriptForms              [list asList asDict asNative]
     foreach typ {float double longDouble} {
-        set ::dlr::simple::${typ}::scriptForms  [list asDouble asNative]
+        set ::dlr::simple::${typ}::scriptForms  [list asDouble]
     }
     set ::dlr::simple::ascii::scriptForms       [list asString]
     set ::dlr::simple::void::scriptForms        [list]
@@ -189,6 +189,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::ptrFmt                       0x%0$($::dlr::simple::ptr::bits >> 2)x
 
     # any asString data might contain this flag string, to represent a null pointer in the native data.
+    # the same for asNative.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
     set ::dlr::nullPtrFlag          _#_nullPtrFlag_#_
 
@@ -362,9 +363,6 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm memAction} 
 
 proc ::dlr::parseParmDescrip {libAlias  pQal  dir  passMethod  type  name  scriptForm  memAction} {
 
-    if {$dir ni $::dlr::directions} {
-        error "Invalid direction of flow was given."
-    }
     set ${pQal}dir  $dir
 
     if {$passMethod ni $::dlr::passMethods} {
@@ -386,7 +384,7 @@ proc ::dlr::parseParmDescrip {libAlias  pQal  dir  passMethod  type  name  scrip
     validateScriptForm $fullType $scriptForm
     set ${pQal}scriptForm  $scriptForm
 
-    if {$passMethod eq {byPtrPtr} || ($passMethod eq {byPtr} && $dir in {out inOut}) } {
+    if {$passMethod eq {byPtrPtr} || ($passMethod eq {byPtr} && $dir in {out inOut return}) } {
         # memAction must be explicitly specified.
         if { $memAction ni $::dlr::memActions } {
             error "Invalid memAction '$memAction' for $passMethod $type $name.  Expected one of: [join $::dlr::memActions , ]"
@@ -441,6 +439,10 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
         lappend order $name
         set pQal ${fQal}parm::${name}::
 
+        if {$dir ni $::dlr::directions} {
+            error "Invalid direction of flow was given."
+        }
+
         ::dlr::parseParmDescrip  $libAlias  $pQal  $dir  \
             $passMethod  $type  $name  $scriptForm  $memAction
 
@@ -454,8 +456,8 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
 
     # memorize metadata for return value.
     # it does not support other names for the native value, since that's generally hidden from scripts anyway.
-    # it's always "out" direction, but does support different types, passMethods, scriptForms, and memAction.
-    # for example: byPtr ascii asString free.
+    # it always works like "out" direction, but does support different types,
+    # passMethods, scriptForms, and memAction.  for example: byPtr ascii asString free.
     set rQal ${fQal}return::
     if {$returnDescrip eq {}} {
         error "You must describe the function's return value, even if it is 'void'."
@@ -468,7 +470,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
         if {$passMethod ni {byVal byPtr}} {
             error "Function return value supports only passMethods byVal, byPtr."
         }
-        ::dlr::parseParmDescrip  $libAlias  $rQal  out  \
+        ::dlr::parseParmDescrip  $libAlias  $rQal  return  \
             $passMethod  $type  "function return value"  $scriptForm  $memAction
         # FFI requires padding the return buffer up to sizeof(ffi_arg).
         # on a big endian machine, that means unpacking from a higher address.
@@ -503,14 +505,12 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
 # returns a boolean expression that can check for the null pointer flag at run time.
 # some scriptForm's have code here to try and avoid shimmering, for more speed.
 proc ::dlr::nullTestExpression {parmBare scriptForm} {
-    if {$scriptForm eq {asString}} {
+    if {$scriptForm in {asString asNative}} {
         return " \$$parmBare eq {$::dlr::nullPtrFlag} "
     } elseif {$scriptForm eq {asList}} {
         return " \[ llength \$$parmBare \] == 0 "
     } elseif {$scriptForm eq {asDict}} {
         return " \[ dict size \$$parmBare \] == 0 "
-    } elseif {$scriptForm eq {asNative}} {
-        error "Parameter '$parmBare' uses scriptForm '$scriptForm' which does not support testing for null, for 'byPtr' passMethod."
     }
     # all other scriptForms e.g. asInt, asDouble.
     return " \[ string length \$$parmBare \] == 0 "
@@ -522,7 +522,7 @@ proc ::dlr::nullTestExpression {parmBare scriptForm} {
 # appear as a target value; that is a value which is to be targeted by a pointer
 # during data conversion.
 proc ::dlr::nullFlagValue {scriptForm} {
-    return $( scriptForm eq {asString}  ?  $::dlr::nullPtrFlag  :  {} )
+    return $( scriptForm in {asString asNative}  ?  $::dlr::nullPtrFlag  :  {} )
 }
 
 # dynamically create a "call wrapper" proc, with a complete executable body, ready to use.
@@ -574,7 +574,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         foreach v [info vars ${pQal}* ] {upvar  #0  $v  [namespace tail $v]}
 
         # Jim "reference arguments" are used to write to "out" and "inOut" parms in the caller's frame.
-        lappend procFormalParms $( $dir in {out inOut} ? "&$parmBare" : "$parmBare" )
+        lappend procFormalParms $( $dir in {out inOut return} ? "&$parmBare" : "$parmBare" )
 
         # derive the names of the variables that might be used at run time.
         # most of these are the qualified names of the variable holding the parm's
@@ -584,15 +584,21 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         set targetNative ${pQal}targetNative
         set    ptrNative ${pQal}ptrNative
         set ptrPtrNative ${pQal}ptrPtrNative
-
-        #todo: support asNative by wrapping some of the following code in "if asNative" and emit a plain "set"
+        if {$scriptForm eq {asNative}} {
+            # use the given variable instead of the usual ${pQal}targetNative.
+            set targetNative $parmBare
+        }
 
         # pack a parm to pass in to the native func.  possibly its pointers also.
         # this must be done, even for "out" parms, to ensure buffer space is available
         # before the call.  that makes sense because ordinary C code always does that.
         set packer [converterName pack $type byVal $scriptForm {}]
+        set packerCall "$packer  $targetNative  \$$parmBare"
+        if {$scriptForm eq {asNative}} {
+            set packerCall {}
+        }
         if {$passMethod eq {byVal}} {
-            append body "\n    $packer  $targetNative  \$$parmBare \n"
+            append body "\n    $packerCall \n"
         } else {
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
@@ -606,12 +612,16 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     if { [nullTestExpression $parmBare $scriptForm] } {
         ::dlr::pack-null  $ptrNative \n
     } else {
-        $packer  $targetNative  \$$parmBare
+        $packerCall
         set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
         ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
     }
-    ::dlr::simple::ptr::pack-byVal-asInt  $ptrPtrNative  \[ ::dlr::addrOf  $ptrNative \]
             "
+            if {$passMethod eq {byPtrPtr}} {
+                append body "
+    ::dlr::simple::ptr::pack-byVal-asInt  $ptrPtrNative  \[ ::dlr::addrOf  $ptrNative \]
+                "
+            }
         }
     }
 
@@ -672,33 +682,56 @@ proc ::dlr::generateUnpackParm {pQal  setScript  targetNativeAddrScript  padding
     set    ptrNative ${pQal}ptrNative
     set ptrPtrNative ${pQal}ptrPtrNative
     set          ptr ${pQal}ptr
+    if {$scriptForm eq {asNative}} {
+        # use the given variable instead of the usual ${pQal}targetNative.
+        set targetNative $parmBare
+    }
+
+#todo: document a large grid of supported marshaling cases, and test results, for a given dlr version.
+
+#todo: reimagine asNative to be irrelevant to simple types, and only affect structs and strings.
+# that's where it's useful anyway.
+# the most important use for asNative is not for speed, but for opaque types you can't know how to convert.
+# provide memcpy and noop converters for structs/strings, and forbid asNative on the simple types.
+
 
     # unpack a parm passed back from the native func.
     set body {}
     #todo: support nulls.
     if {$dir in {out inOut}} {
+#todo: recognize direction 'return' there ^^^.
         if {$passMethod eq {byPtrPtr}} {
             if {[isMemManagedType $type]} {
                 # pointer given out by the native function must be unpacked first.
                 append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative  $paddingScript\] \n"
-                # these types have optimized unpackers for byPtr.
+                # these types have optimized unpackers for byPtr (scriptPtr).
+                # more importantly, a byPtr unpacker can access a buffer that's not in any
+                # Jim variable, such as a buffer provided by the native function.
                 set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
                 append body "\n    $setScript  \[ $unpacker  \$$ptr \] \n"
+                #todo: asNative requires a memcpy here, to bring the data under Jim's management.
             } else {
                 error "Type '$type' does not support '$dir' '$passMethod'."
             }
         } elseif {$passMethod eq {byPtr}} {
             if {[isMemManagedType $type]} {
-                # these types have optimized unpackers for byPtr.
+                # these types have optimized unpackers for byPtr (scriptPtr).
                 set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
                 append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
+                #todo: for return value: asNative requires a memcpy here, to bring the data under Jim's management.
+                #todo: for out parms: asNative requires a no-op here, since the data is already under Jim's management.
+#todo: recognize direction 'return' there ^^^.
             } else {
                 set unpacker [converterName unpack $type byVal $scriptForm {}]
                 append body "\n    $setScript  \[ $unpacker  \$$targetNative \] \n"
+                #todo: asNative not allowed here.
             }
         } else {
+            # pass byVal.
             set unpacker [converterName unpack $type byVal $scriptForm {}]
             append body "\n    $setScript  \[ $unpacker  \$$targetNative  $paddingScript \] \n"
+            #todo: asNative requires a no-op here, since the native function wrote directly to parmBare var.
+            # to make 'return' a no-op, put ;# after it.
         }
     }
     return $body
