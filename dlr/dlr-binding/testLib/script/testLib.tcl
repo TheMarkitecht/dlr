@@ -26,10 +26,10 @@
 
 # ############ strtolTest and its types ######################################
 
-declareCallToNative  applyScript  testLib  {long asInt}  strtolTest  {
-    {in     byPtr   ascii   str     asString}
-    {out    byPtr   ptr     endP    asInt}
-    {in     byVal   int     radix   asInt}
+declareCallToNative  applyScript  testLib  {byVal long asInt}  strtolTest  {
+    {in     byPtr   ascii   str     asString            }
+    {out    byPtr   ptr     endP    asInt       ignore  }
+    {in     byVal   int     radix   asInt               }
 }
 
 # ############ mulByValue and its types ######################################
@@ -42,44 +42,44 @@ declareStructType  applyScript  testLib  quadT  {
     {int  d  asInt}
 }
 
-declareCallToNative  applyScript  testLib  {quadT asList}  mulByValue  {
+declareCallToNative  applyScript  testLib  {byVal quadT asList}  mulByValue  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
 }
 
-declareCallToNative  applyScript  testLib  {quadT asDict}  mulDict  {
+declareCallToNative  applyScript  testLib  {byVal quadT asDict}  mulDict  {
     {in     byVal   quadT   st      asDict}
     {in     byVal   int     factor  asInt}
 }
 
 # ############ dataHandler and its types ######################################
 typedef  u32  dataHandleT
-declareCallToNative  applyScript  testLib  {dataHandleT asInt}  dataHandler  {
+declareCallToNative  applyScript  testLib  {byVal dataHandleT asInt}  dataHandler  {
     {in     byVal   dataHandleT    handle     asInt}
 }
 
-declareCallToNative  applyScript  testLib  {dataHandleT asInt}  dataHandlerPtr  {
-    {inOut     byPtr   dataHandleT    handleP     asInt}
+declareCallToNative  applyScript  testLib  {byVal dataHandleT asInt}  dataHandlerPtr  {
+    {inOut     byPtr   dataHandleT    handleP     asInt     ignore  }
 }
 
 declareCallToNative  applyScript  testLib  {void}  dataHandlerVoid  {
-    {inOut     byPtr   dataHandleT    handleP     asInt}
+    {inOut     byPtr   dataHandleT    handleP     asInt     ignore  }
 }
 
 # ############ floatSquare and its types ######################################
-declareCallToNative  applyScript  testLib  {float asDouble}  floatSquare  {
+declareCallToNative  applyScript  testLib  {byVal float asDouble}  floatSquare  {
     {in     byVal   double      stuff       asDouble}
     {in     byVal   longDouble  longStuff   asDouble}
 }
 
 declareCallToNative  applyScript  testLib  {void}  floatSquarePtr  {
-    {inOut     byPtr   double    stuff     asDouble}
+    {inOut     byPtr   double    stuff     asDouble     ignore }
 }
 
 # ############ cryptAscii and its types ######################################
 declareCallToNative  applyScript  testLib  {void}  cryptAscii  {
-    {inOut  byPtr   ascii   clear   asString}
-    {in     byVal   int     step    asInt}
+    {inOut  byPtr   ascii   clear   asString    ignore  }
+    {in     byVal   int     step    asInt               }
 }
 
 declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
@@ -88,35 +88,21 @@ declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
     {in     byVal       int     step    asInt           }
 }
 
-#todo: support return e.g. byPtr ascii asString free.
-declareCallToNative  applyScript  testLib  {ptr asInt}  cryptAsciiRtn  {
+declareCallToNative  applyScript  testLib  {byPtr ascii asString free}  cryptAsciiRtn  {
     {in     byPtr   ascii   clear   asString}
     {in     byVal   int     step    asInt}
-}
-proc  ::dlr::lib::testLib::cryptAsciiRtn::callManaged {clear step} {
-    # this is an additional little wrapper proc to manage memory according to the app's needs.
-    # it would run faster if we totally replaced ::dlr::lib::testLib::cryptAsciiRtn::call
-    # with this proc, and if we explicitly freed cryptedP at the end, not calling another proc.
-    # but this way instead demonstrates the easiest binding development.
-    return [::dlr::simple::ascii::unpack-scriptPtr-asString-free  \
-        [::dlr::lib::testLib::cryptAsciiRtn::call $clear $step]]
 }
 
 # ############ mulPtr and its types ######################################
 
 #todo: add another test like mulPtr, asNative.
 declareCallToNative  applyScript  testLib  {void}  mulPtr  {
-    {inOut  byPtr   quadT   st      asList}
-    {in     byVal   int     factor  asInt}
+    {inOut  byPtr   quadT   st      asList  ignore  }
+    {in     byVal   int     factor  asInt           }
 }
 
-declareCallToNative  applyScript  testLib  {ptr asInt}  mulMalloc  {
+declareCallToNative  applyScript  testLib  {byPtr quadT asList free}  mulMalloc  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
-}
-proc  ::dlr::lib::testLib::mulMalloc::callManaged {st factor} {
-    # this is an additional little wrapper proc to manage memory according to the app's needs.
-    return [::dlr::lib::testLib::struct::quadT::unpack-scriptPtr-asList-free    \
-        [::dlr::lib::testLib::mulMalloc::call $st $factor]]
 }
 

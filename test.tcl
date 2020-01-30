@@ -212,7 +212,7 @@ loop attempt 2 5 {
     cryptAsciiMalloc $clear crypted $attempt
     assert {$crypted eq $correct}
 }
-alias  cryptAsciiRtn  ::dlr::lib::testLib::cryptAsciiRtn::callManaged
+alias  cryptAsciiRtn  ::dlr::lib::testLib::cryptAsciiRtn::call
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
