@@ -31,6 +31,11 @@ declareCallToNative  applyScript  testLib  {byVal long asInt}  strtolTest  {
     {out    byPtr   ptr     endP    asInt       ignore  }
     {in     byVal   int     radix   asInt               }
 }
+# according to its C header, the endP parameter is 'byPtrPtr ascii'.  but here,
+# endP is declared 'byPtr ptr' instead, because we don't want to automatically
+# unpack a string from it.  instead we'll just pass back to app script the
+# char * pointer asInt instead.
+# memAction 'ignore' skips any automatic memory management on endP also.
 
 # ############ mulByValue and its types ######################################
 

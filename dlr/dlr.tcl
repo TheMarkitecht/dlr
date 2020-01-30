@@ -681,10 +681,10 @@ proc ::dlr::generateUnpackParm {pQal  setScript  targetNativeAddrScript  padding
         if {$passMethod eq {byPtrPtr}} {
             if {[isMemManagedType $type]} {
                 # pointer given out by the native function must be unpacked first.
-                append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative \] \n"
+                append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative  $paddingScript\] \n"
                 # these types have optimized unpackers for byPtr.
                 set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                append body "\n    $setScript  \[ $unpacker  \$$ptr  $paddingScript \] \n"
+                append body "\n    $setScript  \[ $unpacker  \$$ptr \] \n"
             } else {
                 error "Type '$type' does not support '$dir' '$passMethod'."
             }
@@ -692,10 +692,10 @@ proc ::dlr::generateUnpackParm {pQal  setScript  targetNativeAddrScript  padding
             if {[isMemManagedType $type]} {
                 # these types have optimized unpackers for byPtr.
                 set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript  $paddingScript \] \n"
+                append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
             } else {
                 set unpacker [converterName unpack $type byVal $scriptForm {}]
-                append body "\n    $setScript  \[ $unpacker  \$$targetNative  $paddingScript \] \n"
+                append body "\n    $setScript  \[ $unpacker  \$$targetNative \] \n"
             }
         } else {
             set unpacker [converterName unpack $type byVal $scriptForm {}]

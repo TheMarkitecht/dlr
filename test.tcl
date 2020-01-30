@@ -235,7 +235,7 @@ loop attempt 2 5 {
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
-alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::callManaged
+alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::call
 loop attempt 2 5 {
     lassign [mulMalloc [list 10 11 12 13] $attempt] a b c d
     assert {$a == 10 * $attempt}
