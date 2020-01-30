@@ -87,7 +87,6 @@ typedef struct {
         dlrFlagsT* aFlags; // points directly beyond the atypes array.
     #endif
     ffiFnP fn;
-    Jim_Obj* returnVar;
     size_t returnSizePadded;
     Jim_Obj* nativeParmsList;
     ffi_type* atypes; // placeholder for first element of the array of type pointers located directly at the end of the structure.
@@ -478,7 +477,6 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         cmdIX = 0,
         metaBlobVarNameIX,
         fnPIX,
-        returnVarNameIX,
         returnTypeVarNameIX,
         nativeParmsListIX,
         parmTypeVarNameListIX,
@@ -516,7 +514,6 @@ int prepMetaBlob(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
     }
 
     // gather return-value metadata.
-    meta->returnVar = objv[returnVarNameIX];
     ffi_type* rtype = NULL;
     if (varToTypeP(itp, objv[returnTypeVarNameIX], &rtype) != JIM_OK) return JIM_ERR;
 
