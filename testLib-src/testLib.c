@@ -116,8 +116,17 @@ void mulPtr(quadT* st, const int factor) {
     st->c *= factor;
     st->d *= factor;
 }
-extern quadT* mulMalloc(const quadT st, const int factor);
-quadT* mulMalloc(const quadT st, const int factor) {
+extern void mulMalloc(quadT** st, const int factor);
+void mulMalloc(quadT** st, const int factor) {
+    quadT* r = (quadT*)malloc(sizeof(quadT));
+    r->a = 10 * factor;
+    r->b = 11 * factor;
+    r->c = 12 * factor;
+    r->d = 13 * factor;
+    *st = r;
+}
+extern quadT* mulMallocRtn(const quadT st, const int factor);
+quadT* mulMallocRtn(const quadT st, const int factor) {
     quadT* r = (quadT*)malloc(sizeof(quadT));
     r->a = st.a * factor;
     r->b = st.b * factor;

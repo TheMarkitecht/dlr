@@ -802,7 +802,7 @@ int packerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int requiredLen = offset + sizeBytes;
 
     Jim_Obj* v = Jim_GetVariable(itp, objv[pk_packVarNameIX], JIM_NONE);
-    if (v == NULL || v->length < requiredLen) {
+    if (v == NULL || v->bytes == NULL || v->length < requiredLen) {
         if (createBufferVarNative(itp, objv[pk_packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
     }
     *bufP = (void*)((u8*)v->bytes + offset);
@@ -950,6 +950,52 @@ int ascii_pack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[])
     return JIM_OK;
 }
 
+int pack_null(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
+    enum {
+        cmdIX = 0,
+        packVarNameIX,
+        offsetBytesIX,
+        nextOffsetVarNameIX,
+        argCount
+    };
+
+    if (objc > argCount || objc < offsetBytesIX) {
+        Jim_SetResultString(itp, "Wrong # args.", -1);
+        return JIM_ERR;
+    }
+
+    jim_wide offset = 0;
+    if (objc > offsetBytesIX) {
+        if (Jim_GetWide(itp, objv[offsetBytesIX], &offset) != JIM_OK) {
+            Jim_SetResultString(itp, "Expected offset integer but got other data.", -1);
+            return JIM_ERR;
+        }
+        if (offset < 0) {
+            Jim_SetResultString(itp, "Offset cannot be negative.", -1);
+            return JIM_ERR;
+        }
+    }
+    const int sizeBytes = sizeof(void*);
+    int requiredLen = offset + sizeBytes;
+
+    Jim_Obj* v = Jim_GetVariable(itp, objv[packVarNameIX], JIM_NONE);
+    if (v == NULL || v->bytes == NULL || v->length < requiredLen) {
+        if (createBufferVarNative(itp, objv[packVarNameIX], sizeBytes, NULL, &v) != JIM_OK) return JIM_ERR;
+    }
+    void** bufP = (void**)((u8*)v->bytes + offset);
+
+    if (objc > nextOffsetVarNameIX) {
+        // memorize the offset for the next operation after this one.
+        if (Jim_SetVariable(itp, objv[nextOffsetVarNameIX], Jim_NewIntObj(itp, requiredLen)) != JIM_OK) {
+            Jim_SetResultString(itp, "Failed to memorize next offset.", -1);
+            return JIM_ERR;
+        }
+    }
+
+    *bufP = NULL;
+    return JIM_OK;
+}
+
 int unpackerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int sizeBytes, void** bufP) {
 
@@ -980,7 +1026,7 @@ int unpackerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int requiredLen = offset + sizeBytes;
 
     Jim_Obj* v = objv[packedValueIX];
-    if (v->length < requiredLen) {
+    if (v->bytes == NULL || v->length < requiredLen) {
         Jim_SetResultString(itp, "Packed value is too short.", -1);
         return JIM_ERR;
     }
@@ -1162,6 +1208,7 @@ int Jim_dlrNativeInit(Jim_Interp* itp) {
     Jim_CreateCommand(itp, "dlr::native::double-pack-byVal-asDouble",       double_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::longDouble-pack-byVal-asDouble",   longDouble_pack_byVal_asDouble, NULL, NULL);
     Jim_CreateCommand(itp, "dlr::native::ascii-pack-byVal-asString",        ascii_pack_byVal_asString, NULL, NULL);
+    Jim_CreateCommand(itp, "dlr::native::pack-null",                        pack_null, NULL, NULL);
 
     // data unpackers.
     Jim_CreateCommand(itp, "dlr::native::u8-unpack-byVal-asInt",            u8_unpack_byVal_asInt,  NULL, NULL);

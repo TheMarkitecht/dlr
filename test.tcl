@@ -80,7 +80,7 @@ if {$benchReps ne {}} {
     bench fullWrap $($benchReps / 10) {
         strtol  $str  endP  10
     }
-    set endP $::dlr::packedNull
+    ::dlr::pack-null endP
     ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
     bench pack3 $($benchReps / 10) {
         ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::strP  [::dlr::addrOf str]
@@ -112,9 +112,6 @@ loop attempt 0 3 {
     set strPmasked $( [::dlr::addrOf myNum] & 0xfffffffff0000000 )
     set endPmasked $(                 $endP & 0xfffffffff0000000 )
     assert {$endPmasked == $strPmasked}
-
-    # verify "constant" dlr::null was not overwritten.  that could have happened in older versions of this test.
-    assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::packedNull] == 0}
 }
 assert { -999999999 == [strtol  $::dlr::nullPtrFlag  endP  10]}
 
@@ -224,7 +221,7 @@ loop attempt 2 5 {
     assert {$cryptedRtn eq $correct}
 }
 
-# mulPtr and mulMalloc test
+# mulPtr and mulMallocRtn test
 alias  mulPtr  ::dlr::lib::testLib::mulPtr::call
 loop attempt 2 5 {
     set st [list 10 11 12 13]
@@ -237,16 +234,22 @@ loop attempt 2 5 {
 }
 alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::call
 loop attempt 2 5 {
-    lassign [mulMalloc [list 10 11 12 13] $attempt] a b c d
+    set st {}
+    mulMalloc st $attempt
+    lassign $st a b c d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
-
-# verify "constant" dlr::null was not overwritten since startup.
-# always do this test last of all.
-assert {[::dlr::simple::ptr::unpack-byVal-asInt $::dlr::packedNull] == 0}
+alias  mulMallocRtn  ::dlr::lib::testLib::mulMallocRtn::call
+loop attempt 2 5 {
+    lassign [mulMallocRtn [list 10 11 12 13] $attempt] a b c d
+    assert {$a == 10 * $attempt}
+    assert {$b == 11 * $attempt}
+    assert {$c == 12 * $attempt}
+    assert {$d == 13 * $attempt}
+}
 
 puts "*** ALL TESTS PASS ***"
 

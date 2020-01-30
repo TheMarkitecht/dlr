@@ -102,6 +102,8 @@ extern int longDouble_pack_byVal_asDouble(Jim_Interp* itp, int objc, Jim_Obj * c
 
 extern int ascii_pack_byVal_asString(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
 
+extern int pack_null(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) ;
+
 extern int unpackerSetup_byVal(Jim_Interp* itp, int objc, Jim_Obj * const objv[],
     int sizeBytes, void** bufP);
 

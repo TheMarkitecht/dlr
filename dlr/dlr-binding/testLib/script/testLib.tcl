@@ -106,7 +106,12 @@ declareCallToNative  applyScript  testLib  {void}  mulPtr  {
     {in     byVal   int     factor  asInt           }
 }
 
-declareCallToNative  applyScript  testLib  {byPtr quadT asList free}  mulMalloc  {
+declareCallToNative  applyScript  testLib  {void}  mulMalloc  {
+    {out    byPtrPtr    quadT   st      asList    free  }
+    {in     byVal       int     factor  asInt           }
+}
+
+declareCallToNative  applyScript  testLib  {byPtr quadT asList free}  mulMallocRtn  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
 }

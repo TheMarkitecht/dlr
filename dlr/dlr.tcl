@@ -77,6 +77,7 @@ proc ::dlr::initDlr {} {
     set ::dlr::simple::void::bits  0
 
     # ffi type codes map.  certain types are deleted for being too vague or otherwise unusable.
+    # this map is not generally used by app script, only internally by dlr.
     set ::dlr::ffiType::void        0
     set ::dlr::ffiType::float       2
     set ::dlr::ffiType::double      3
@@ -94,6 +95,7 @@ proc ::dlr::initDlr {} {
     # ... and an extended map also, including those plus additional aliases
     # corresponding to C language types on the host platform.
     # we assume unsigned ints are the same length as the signed ints.
+    # this map may be generally used by app script, outside of dlr.
     set ::dlr::simple::int::ffiTypeCode            [get ::dlr::ffiType::i$::dlr::simple::int::bits       ]
     set ::dlr::simple::short::ffiTypeCode          [get ::dlr::ffiType::i$::dlr::simple::short::bits     ]
     set ::dlr::simple::long::ffiTypeCode           [get ::dlr::ffiType::i$::dlr::simple::long::bits      ]
@@ -174,12 +176,17 @@ proc ::dlr::initDlr {} {
     }
 
     # pointer support.
-    set ::dlr::ptrFmt               0x%0$($::dlr::simple::ptr::bits / 4)x
+    # null pointers must be repacked each time they're needed.  copying null from a
+    # pseudo-constant in script instead doesn't work;  Jim 0.79 shares the value instead
+    # of copying it.  that means it's easy to accidentally modify during a native call,
+    # because those don't respect Jim's internal operating rules for uniqueness.
+    # that leads to insidious bugs that seem totally unrelated to the real cause.
+    alias  ::dlr::simple::ptr::pack-null    ::dlr::native::pack-null
+    alias  ::dlr::pack-null                 ::dlr::native::pack-null
 
-    # scripts can use $::dlr::packedNull instead of packing their own nulls.
-    # packed nulls are typically not needed in app script, but might be useful
-    # to speed up handwritten converters.
-    ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::packedNull  0
+    # this format string makes [format] display a pointer (asInt) in a readable way.
+    # it adapts to the machine's word size etc.
+    set ::dlr::ptrFmt                       0x%0$($::dlr::simple::ptr::bits >> 2)x
 
     # any asString data might contain this flag string, to represent a null pointer in the native data.
     # other scriptForms generally represent null pointer as an empty string / list / dict.
@@ -589,29 +596,21 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
         } else {
             # pass by pointer requires 2 packed native vars:  one for the target type's data,
             # and another for the pointer to it.  both must be packed to native before the call.
-            set pBody "
-        $packer  $targetNative  \$$parmBare
-        set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
-        ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
-            "
-            set pBodyNull "set  $ptrNative  \$::dlr::packedNull \n"
+            #
             # pass by pointer-to-pointer-to-target requires a third native var.
-            # its packing code will be inserted next to that of the first-degree pointer below.
-            set ppBody {}
-            set ppBodyNull {}
-            if {$passMethod eq {byPtrPtr}} {
-                set ppBody "::dlr::simple::ptr::pack-byVal-asInt  $ptrPtrNative  \[ ::dlr::addrOf  $ptrNative \]"
-                set ppBodyNull "set  $ptrPtrNative  \$::dlr::packedNull \n"
-            }
+            # it's never null; always pointed to the pointer-to-target.
+            # if it needs to be null, the app will have to provide a customized call wrapper.
+
             # check for the null pointer flag at run time.
             append body "
     if { [nullTestExpression $parmBare $scriptForm] } {
-        $pBodyNull
-        $ppBodyNull
+        ::dlr::pack-null  $ptrNative \n
     } else {
-        $pBody
-        $ppBody
+        $packer  $targetNative  \$$parmBare
+        set addrOf$parmBare \[ ::dlr::addrOf  $targetNative \]
+        ::dlr::simple::ptr::pack-byVal-asInt  $ptrNative  \$addrOf$parmBare
     }
+    ::dlr::simple::ptr::pack-byVal-asInt  $ptrPtrNative  \[ ::dlr::addrOf  $ptrNative \]
             "
         }
     }
