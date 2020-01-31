@@ -119,4 +119,4 @@ declareCallToNative  applyScript  testLib  {void}  mulPtrNat  {
     {inOut  byPtr   quadT   st      asNative  ignore  }
     {in     byVal   int     factor  asInt             }
 }
-
+#todo: test returning byPtr asNative.

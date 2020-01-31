@@ -126,6 +126,8 @@ proc ::dlr::initDlr {} {
     # the scriptForm "asNative" means a binary blob, having the same layout the native function uses.
     # those tend to be opaque to script, so not very useful there.  but they can be passed directly
     # to another native function, without any intermediate conversions, increasing speed.
+    # the most important use for asNative is not for speed, but for opaque types: those whose details
+    # are not exposed in their API, so the app can't know how to convert them.
     #
     # most simple types are integer scalars, so blanket all types with asInt.
     foreach v [info vars ::dlr::simple::*::ffiTypeCode] {
@@ -474,6 +476,7 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
             $passMethod  $type  "function return value"  $scriptForm  $memAction
         # FFI requires padding the return buffer up to sizeof(ffi_arg).
         # on a big endian machine, that means unpacking from a higher address.
+        #todo: move de-padding implementation into callToNative.  no reason for it to be in script (slow).  store the padding amount in the metaBlob.
         set ${rQal}padding 0
         set sz [get [get ${rQal}passType]::size]
         if {$sz < $::dlr::simple::ffiArg::size && $::dlr::endian eq {be}} {
@@ -638,7 +641,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     # unpack "out" parms.
     foreach  parmBare  [get ${fQal}parmOrder]   {
         set pQal ${fQal}parm::${parmBare}::
-        append body [generateUnpackParm  $pQal  "set $parmBare"  \$addrOf$parmBare  {} ]
+        append body [generateUnpackParm  $pQal  $parmBare  \$addrOf$parmBare ]
     }
 
     # unpack return value.
@@ -655,7 +658,7 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
                 " \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$[get ${rQal}nativeVarName]  \$${rQal}padding \] "
         }
         # use that to generateUnpackParm.
-        append body [generateUnpackParm  $rQal  return  $targetNativeAddrScript  \$${rQal}padding ]
+        append body [generateUnpackParm  $rQal  junk  $targetNativeAddrScript ]
     }
 
     # compose "proc" commands.
@@ -673,67 +676,134 @@ proc ::dlr::generateCallProc {libAlias  fnName  callCommand} {
     return $procCmd
 }
 
-proc ::dlr::generateUnpackParm {pQal  setScript  targetNativeAddrScript  paddingScript} {
+# dlr internal command.  generate script to unpack a parm passed back from the native func.
+proc ::dlr::generateUnpackParm {pQal  parmBare  targetNativeAddrScript} {
+    # define as local proc's a number of unpacking strategies that can be generated.
+    local proc strat-doNothing {} { uplevel 1 {
+    }}
+    local proc strat-byPtrPtrMem {} { uplevel 1 {
+        # pointer given out by the native function must be unpacked first.
+        append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative  $paddingScript\] \n"
+        set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
+        append body "\n    $setScript  \[ $unpacker  \$$ptr \] \n"
+        #todo: asNative requires a memcpy here, to bring the data under Jim's management.
+    }}
+    local proc strat-byPtrMemOther {} { uplevel 1 {
+        # all other scriptForms besides asNative.
+        # structs and strings have unpackers for byPtr (scriptPtr).  calling one of those
+        # is faster than unpacking another pointer and then calling a byVal unpacker.
+        # more importantly, a byPtr unpacker can access a buffer that's not in any
+        # Jim variable, such as a buffer provided by the native function.
+        set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
+        append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
+    }}
+    local proc strat-byPtrMemAsNativeRtn {} { uplevel 1 {
+#todo: fold this into byPtrMemOther ?
+        # for return value: asNative requires a memcpy here, to bring the data under Jim's management.
+        # for out parms: asNative requires a doNothing instead, since the data is already under Jim's management.
+        set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
+        append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
+    }}
+    local proc strat-byPtrSimple {} { uplevel 1 {
+        set unpacker [converterName unpack $type byVal $scriptForm {}]
+        append body "\n    $setScript  \[ $unpacker  \$$targetNative \] \n"
+    }}
+    local proc strat-byValAsNative {} { uplevel 1 {
+#todo: fold this into doNothing.  move the comment to a new comment area below the table.  refer to each comment by a number in a new comments column.
+        # asNative requires a no-op here, since the native function wrote directly to parmBare var.
+    }}
+    local proc strat-byValOther {} { uplevel 1 {
+        set unpacker [converterName unpack $type byVal $scriptForm {}]
+        append body "\n    $setScript  \[ $unpacker  \$$targetNative  $paddingScript \] \n"
+    }}
+
     # set up local names to access all the metadata for this parm.
     foreach v [info vars ${pQal}* ] {upvar  #0  $v  [namespace tail $v]}
 
+#todo: document a large grid of supported marshaling cases, and test results, for a given dlr version.
+
+    # ### decide strategy.
+    # detect or derive certain conditions which can be used during strategy selection.
+    set managedType  $( [isMemManagedType $type] ? {yes} : {no} )
+
+    # match actual situation to one row of this dispatch table of different cases.
+    # the matching row indicates the usable strategy.
+    # that is the topmost row where every cell in the row matches the actual situation.
+    # each table cell can contain a pattern for [string match], or a list of those.
+    # if any pattern in the list matches, the cell is a match.
+    # a strategy name may appear on more than one row; that's fine.
+    # pattern columns:
+    #     dir                   passMethod  scriptForm  managedType strat
+    set cases {
+        { in                    *           *           *           doNothing           }
+
+        { {out inOut return}    byVal       asNative    *           byValAsNative       }
+        { {out inOut return}    byVal       *           *           byValOther          }
+
+        { {out inOut return}    byPtr       *           no          byPtrSimple         }
+        { {out inOut       }    byPtr       asNative    yes         doNothing           }
+        { {          return}    byPtr       asNative    yes         byPtrMemAsNativeRtn }
+        { {out inOut return}    byPtr       *           yes         byPtrMemOther       }
+
+        { {out inOut       }    byPtrPtr    *           yes         byPtrPtrMem         }
+    }
+
+    # verify table integrity.
+    set allStrats [lmap row $cases {lindex $row 4}]
+    # verify each row.
+    foreach strat $allStrats {
+        if { ! [exists -command strat-$strat]} {
+            error "Strategy $strat is mentioned in dispatch table, but is not implemented."
+        }
+    }
+    # verify each proc.
+    foreach cmd [info commands strat-*] {
+        if {[string range $cmd 6 end] ni $allStrats} {
+            error "Strategy $strat is implemented, but not mentioned in dispatch table."
+        }
+    }
+
+    # search the rows for a match.
+    set foundStrat {}
+    foreach row $cases {
+        set rowOK 1
+        foreach col {0 1 2 3} var {dir  passMethod  scriptForm  managedType} {
+            set colOK 0
+            foreach pat [lindex $row $col] {
+                set colOK $( $colOK || [string match $pat [get $var]] )
+            }
+            set rowOK $( $rowOK && $colOK )
+        }
+        if {$rowOK} {
+            set foundStrat [lindex $row 4]
+            break
+        }
+    }
+    # error if no strategy was found.
+    if {$foundStrat eq {}} {
+        error "Unpacking strategy not found due to unsupported configuration for parameter: $pQal"
+    }
+
+    # ### compose script per the chosen strategy.
     # derive the names of the variables that might be used at run time.
     set targetNative ${pQal}targetNative
     set    ptrNative ${pQal}ptrNative
     set ptrPtrNative ${pQal}ptrPtrNative
     set          ptr ${pQal}ptr
+
+    # create some parameters first of all, that can be used in any strategy.
+    # these work to fold some cases together, which reduces the number of strategies required.
     if {$scriptForm eq {asNative}} {
         # use the given variable instead of the usual ${pQal}targetNative.
+        # conversions of the target data are skipped for asNative.
         set targetNative $parmBare
     }
+    set paddingScript $( $dir eq {return} && $padding > 0  ?  $padding  :  {} )
+    set setScript $( $dir eq {return}  ?  {return} : "set  $parmBare" )
 
-#todo: document a large grid of supported marshaling cases, and test results, for a given dlr version.
-
-#todo: reimagine asNative to be irrelevant to simple types, and only affect structs and strings.
-# that's where it's useful anyway.
-# the most important use for asNative is not for speed, but for opaque types you can't know how to convert.
-# provide memcpy and noop converters for structs/strings, and forbid asNative on the simple types.
-
-
-    # unpack a parm passed back from the native func.
+    #todo: support nulls at run time.
     set body {}
-    #todo: support nulls.
-    if {$dir in {out inOut}} {
-#todo: recognize direction 'return' there ^^^.
-        if {$passMethod eq {byPtrPtr}} {
-            if {[isMemManagedType $type]} {
-                # pointer given out by the native function must be unpacked first.
-                append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative  $paddingScript\] \n"
-                # these types have optimized unpackers for byPtr (scriptPtr).
-                # more importantly, a byPtr unpacker can access a buffer that's not in any
-                # Jim variable, such as a buffer provided by the native function.
-                set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                append body "\n    $setScript  \[ $unpacker  \$$ptr \] \n"
-                #todo: asNative requires a memcpy here, to bring the data under Jim's management.
-            } else {
-                error "Type '$type' does not support '$dir' '$passMethod'."
-            }
-        } elseif {$passMethod eq {byPtr}} {
-            if {[isMemManagedType $type]} {
-                # these types have optimized unpackers for byPtr (scriptPtr).
-                set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-                append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
-                #todo: for return value: asNative requires a memcpy here, to bring the data under Jim's management.
-                #todo: for out parms: asNative requires a no-op here, since the data is already under Jim's management.
-#todo: recognize direction 'return' there ^^^.
-            } else {
-                set unpacker [converterName unpack $type byVal $scriptForm {}]
-                append body "\n    $setScript  \[ $unpacker  \$$targetNative \] \n"
-                #todo: asNative not allowed here.
-            }
-        } else {
-            # pass byVal.
-            set unpacker [converterName unpack $type byVal $scriptForm {}]
-            append body "\n    $setScript  \[ $unpacker  \$$targetNative  $paddingScript \] \n"
-            #todo: asNative requires a no-op here, since the native function wrote directly to parmBare var.
-            # to make 'return' a no-op, put ;# after it.
-        }
-    }
+    strat-$foundStrat
     return $body
 }
 
@@ -824,6 +894,9 @@ proc ::dlr::validateStructType {libAlias  structTypeName} {
 }
 
 #todo: documentation similar to generateCallProc
+# upvar is not used in these converters.  it would just be one more line of script
+# to slow down performance, and usually wouldn't be helpful anyway.  instead the
+# packVarName is assumed to be globally qualified.  it usually is.
 proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
     set procs [list]
@@ -835,34 +908,35 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
 
     set computeNext "
     if { \$nextOffsetVarName ne {}} {
-        upvar \$nextOffsetVarName next
-        set next \$( \$offsetBytes + \$${sQal}size )
+        upvar 1 \$nextOffsetVarName next
+        set next \$( \$offsetBytes + [get ${sQal}size] )
     }
     "
 
-    # generate pack-byVal-asList
+    # generate pack-byVal-asList.
     set body "
     lassign \$unpackedData  [join $memberTemps {  }]
-    ::dlr::createBufferVar  \$packVarName  \$${sQal}size
+    ::dlr::createBufferVar  \$packVarName  [get ${sQal}size]
     "
     foreach  mName [get ${sQal}memberOrder]  mTemp $memberTemps  {
         set mQal ${sQal}member::${mName}::
         set packer [converterName   pack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "\n    $packer  \$packVarName  \$$mTemp  \$( \$offsetBytes + \$${mQal}offset ) \n"
-        # that could run faster (maybe?) if it placed the offset integer into the script
-        # instead of fetching it from metadata at run time.  then again, it might not.
-        # it would definitely be harder to read and maintain with the magic numbers,
+        append body "\n    $packer  \$packVarName  \$$mTemp  \$( \$offsetBytes + [get ${mQal}offset] ) \n"
+        # here we opted to run faster (maybe?) by placing the offset integer into the script
+        # instead of fetching it from metadata at run time.
+        # it might be harder to read and maintain with the magic numbers (or easier?),
         # and more likely to fail after the struct is recompiled.
+        # the same goes for the struct size constant.
     }
     append body $computeNext
     lappend procs "proc  ${sQal}pack-byVal-asList  { $packerParms }  { \n$body \n}"
 
     # generate pack-byVal-asDict
-    set body "\n    ::dlr::createBufferVar  \$packVarName  \$${sQal}size \n"
+    set body "\n    ::dlr::createBufferVar  \$packVarName  [get ${sQal}size] \n"
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set packer [converterName   pack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "\n    $packer  \$packVarName  \$unpackedData($mName)  \$( \$offsetBytes + \$${mQal}offset ) \n"
+        append body "\n    $packer  \$packVarName  \$unpackedData($mName)  \$( \$offsetBytes + [get ${mQal}offset] ) \n"
     }
     append body $computeNext
     lappend procs "proc  ${sQal}pack-byVal-asDict  { $packerParms }  { \n$body \n}"
@@ -873,7 +947,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set unpacker [converterName  unpack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "\n        \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
+        append body "\n        \[ $unpacker  \$packedValue  \$( \$offsetBytes + [get ${mQal}offset] ) \] " \\ \n
     }
     append body "\n    \] \n"
     lappend procs "proc  ${sQal}unpack-byVal-asList  { $unpackerParms }  { \n$body \n}"
@@ -884,7 +958,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     foreach  mName [get ${sQal}memberOrder]  {
         set mQal ${sQal}member::${mName}::
         set unpacker [converterName  unpack  [get ${mQal}type]  byVal  [get ${mQal}scriptForm]  {}]
-        append body "\n        $mName \[ $unpacker  \$packedValue  \$( \$offsetBytes + \$${mQal}offset ) \] " \\ \n
+        append body "\n        $mName \[ $unpacker  \$packedValue  \$( \$offsetBytes + [get ${mQal}offset] ) \] " \\ \n
     }
     append body "\n    \] \n"
     lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n}"
