@@ -424,9 +424,9 @@ proc ::dlr::parseParmDescrip {libAlias  pQal  dir  passMethod  type  name  scrip
     return $fullType
 }
 
-# at each declaration, if scriptAction is applyScript, dlr source's the generated
+# at each declaration, if scriptAction is 'wrap', dlr source's the generated
 # support scripts into the live interpreter.
-# per the app's needs, it could instead define its own support procs (noScript).
+# per the app's needs, it could instead define its own support procs ('noScript').
 # or it could source the generated ones, and then modify or further wrap certain ones.
 #todo: more documentation
 proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  parmsDescrip} {
@@ -491,11 +491,14 @@ proc ::dlr::declareCallToNative {scriptAction  libAlias  returnDescrip  fnName  
     }
 
     #todo: enhance all error messages throughout the project.
-    if {$scriptAction ni {applyScript noScript}} {
+    if {$scriptAction ni {noScript wrap cmd}} {
         error "Invalid script action: $scriptAction"
     }
-    if {$scriptAction eq {applyScript}} {
+    if {$scriptAction in {wrap cmd}} {
         source [callWrapperPath  $libAlias  $fnName]
+    }
+    if {$scriptAction eq {cmd}} {
+        alias  ::${libAlias}::$fnName  ::dlr::lib::${libAlias}::${fnName}::call
     }
 
     # prepare a metaBlob to hold dlrNative and FFI data structures.
@@ -826,10 +829,10 @@ proc ::dlr::declareStructType {scriptAction  libAlias  structTypeName  membersDe
     } else {
         validateStructType  $libAlias  $structTypeName
     }
-    if {$scriptAction ni {applyScript noScript}} {
+    if {$scriptAction ni {noScript convert}} {
         error "Invalid script action: $scriptAction"
     }
-    if {$scriptAction eq {applyScript}} {
+    if {$scriptAction eq {convert}} {
         source [structConverterPath  $libAlias  $structTypeName]
     }
 }

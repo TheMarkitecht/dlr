@@ -26,7 +26,7 @@
 
 # ############ strtolTest and its types ######################################
 
-declareCallToNative  applyScript  testLib  {byVal long asInt}  strtolTest  {
+declareCallToNative  cmd  testLib  {byVal long asInt}  strtolTest  {
     {in     byPtr   ascii   str     asString            }
     {out    byPtr   ptr     endP    asInt       ignore  }
     {in     byVal   int     radix   asInt               }
@@ -40,87 +40,87 @@ declareCallToNative  applyScript  testLib  {byVal long asInt}  strtolTest  {
 # ############ mulByValue and its types ######################################
 
 # extract type metadata from C.
-declareStructType  applyScript  testLib  quadT  {
+declareStructType  convert  testLib  quadT  {
     {int  a  asInt}
     {int  b  asInt}
     {int  c  asInt}
     {int  d  asInt}
 }
 
-declareCallToNative  applyScript  testLib  {byVal quadT asList}  mulByValue  {
+declareCallToNative  cmd  testLib  {byVal quadT asList}  mulByValue  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
 }
 
-declareCallToNative  applyScript  testLib  {byVal quadT asDict}  mulDict  {
+declareCallToNative  cmd  testLib  {byVal quadT asDict}  mulDict  {
     {in     byVal   quadT   st      asDict}
     {in     byVal   int     factor  asInt}
 }
 
 # ############ dataHandler and its types ######################################
 typedef  u32  dataHandleT
-declareCallToNative  applyScript  testLib  {byVal dataHandleT asInt}  dataHandler  {
+declareCallToNative  cmd  testLib  {byVal dataHandleT asInt}  dataHandler  {
     {in     byVal   dataHandleT    handle     asInt}
 }
 
-declareCallToNative  applyScript  testLib  {byVal dataHandleT asInt}  dataHandlerPtr  {
+declareCallToNative  cmd  testLib  {byVal dataHandleT asInt}  dataHandlerPtr  {
     {inOut     byPtr   dataHandleT    handleP     asInt     ignore  }
 }
 
-declareCallToNative  applyScript  testLib  {void}  dataHandlerVoid  {
+declareCallToNative  cmd  testLib  {void}  dataHandlerVoid  {
     {inOut     byPtr   dataHandleT    handleP     asInt     ignore  }
 }
 
 # ############ floatSquare and its types ######################################
-declareCallToNative  applyScript  testLib  {byVal float asDouble}  floatSquare  {
+declareCallToNative  cmd  testLib  {byVal float asDouble}  floatSquare  {
     {in     byVal   double      stuff       asDouble}
     {in     byVal   longDouble  longStuff   asDouble}
 }
 
-declareCallToNative  applyScript  testLib  {void}  floatSquarePtr  {
+declareCallToNative  cmd  testLib  {void}  floatSquarePtr  {
     {inOut     byPtr   double    stuff     asDouble     ignore }
 }
 
 # ############ cryptAscii and its types ######################################
-declareCallToNative  applyScript  testLib  {void}  cryptAscii  {
+declareCallToNative  cmd  testLib  {void}  cryptAscii  {
     {inOut  byPtr   ascii   clear   asString    ignore  }
     {in     byVal   int     step    asInt               }
 }
 
-declareCallToNative  applyScript  testLib  {void}  cryptAsciiMalloc  {
+declareCallToNative  cmd  testLib  {void}  cryptAsciiMalloc  {
     {in     byPtr       ascii   clear   asString        }
     {out    byPtrPtr    ascii   crypted asString    free}
     {in     byVal       int     step    asInt           }
 }
 
-declareCallToNative  applyScript  testLib  {byPtr ascii asString free}  cryptAsciiRtn  {
+declareCallToNative  cmd  testLib  {byPtr ascii asString free}  cryptAsciiRtn  {
     {in     byPtr   ascii   clear   asString}
     {in     byVal   int     step    asInt}
 }
 
 # ############ mulPtr and its types ######################################
 
-declareCallToNative  applyScript  testLib  {void}  mulPtr  {
+declareCallToNative  cmd  testLib  {void}  mulPtr  {
     {inOut  byPtr   quadT   st      asList  ignore  }
     {in     byVal   int     factor  asInt           }
 }
 
-declareCallToNative  applyScript  testLib  {void}  mulMalloc  {
+declareCallToNative  cmd  testLib  {void}  mulMalloc  {
     {out    byPtrPtr    quadT   st      asList    free  }
     {in     byVal       int     factor  asInt           }
 }
 
-declareCallToNative  applyScript  testLib  {byPtr quadT asList free}  mulMallocRtn  {
+declareCallToNative  cmd  testLib  {byPtr quadT asList free}  mulMallocRtn  {
     {in     byVal   quadT   st      asList}
     {in     byVal   int     factor  asInt}
 }
 
-declareCallToNative  applyScript  testLib  {void}  mulPtrNat  {
+declareCallToNative  cmd  testLib  {void}  mulPtrNat  {
     {inOut  byPtr   quadT   st      asNative  ignore  }
     {in     byVal   int     factor  asInt             }
 }
 
-declareCallToNative  applyScript  testLib  {byPtr quadT asNative free}  mulMallocRtnNat  {
+declareCallToNative  cmd  testLib  {byPtr quadT asNative free}  mulMallocRtnNat  {
     {in     byVal   int     factor  asInt}
 }
 

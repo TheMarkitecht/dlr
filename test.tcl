@@ -74,11 +74,10 @@ if [::dlr::refreshMeta] {
 # difference is under 1%, far less than the background noise from the OS multitasking.
 if {$benchReps ne {}} {
     set benchReps $(int($benchReps))
-    alias  strtol  ::dlr::lib::testLib::strtolTest::call
     set str 905
     set endP 0
     bench fullWrap $($benchReps / 10) {
-        strtol  $str  endP  10
+        ::testLib::strtolTest  $str  endP  10
     }
     ::dlr::pack-null endP
     ::dlr::simple::ptr::pack-byVal-asInt  ::dlr::lib::testLib::strtolTest::parm::endP  [::dlr::addrOf endP]
@@ -94,13 +93,12 @@ if {$benchReps ne {}} {
 }
 
 # strtolTest test
-alias  strtol  ::dlr::lib::testLib::strtolTest::call
 loop attempt 0 3 {
     set myNum $(550 + $attempt * 3)
     # addrOf requires a string, so it will implicitly use the string representation of myNum.
     #puts strP=[format $::dlr::ptrFmt [::dlr::addrOf myNum]]
     set endP 0
-    set resultUnpacked [strtol  $myNum  endP  10]
+    set resultUnpacked [::testLib::strtolTest  $myNum  endP  10]
     #puts $myNum=$resultUnpacked
     assert {$resultUnpacked == $myNum}
     # can't do reliable pointer arithmetic to verify new value of endP,
@@ -113,21 +111,19 @@ loop attempt 0 3 {
     set endPmasked $(                 $endP & 0xfffffffff0000000 )
     assert {$endPmasked == $strPmasked}
 }
-assert { -999999999 == [strtol  $::dlr::nullPtrFlag  endP  10]}
+assert { -999999999 == [::testLib::strtolTest  $::dlr::nullPtrFlag  endP  10]}
 
 # mulByValue test
-alias  mulByValue  ::dlr::lib::testLib::mulByValue::call
 loop attempt 2 5 {
-    lassign [mulByValue {10 11 12 13} -$attempt] a b c d
+    lassign [::testLib::mulByValue {10 11 12 13} -$attempt] a b c d
     puts quadT.d=$d
     assert {$a == -10 * $attempt}
     assert {$b == -11 * $attempt}
     assert {$c == -12 * $attempt}
     assert {$d == -13 * $attempt}
 }
-alias  mulDict  ::dlr::lib::testLib::mulDict::call
 loop attempt 2 5 {
-    set d [mulDict [dict create a 10 b 11 c 12 d 13] $attempt]
+    set d [::testLib::mulDict [dict create a 10 b 11 c 12 d 13] $attempt]
     assert {$d(a) == 10 * $attempt}
     assert {$d(b) == 11 * $attempt}
     assert {$d(c) == 12 * $attempt}
@@ -143,50 +139,44 @@ loop attempt 0 3 {
 }
 
 # dataHandler test
-alias  dataHandler  ::dlr::lib::testLib::dataHandler::call
 loop attempt 2 5 {
-    set handle [dataHandler $attempt]
+    set handle [::testLib::dataHandler $attempt]
     puts "attempt=$attempt  handle=[format 0x%x $handle]"
     assert {$handle == $attempt << 4}
 }
 
-alias  dataHandlerPtr  ::dlr::lib::testLib::dataHandlerPtr::call
 loop attempt 2 5 {
     set h $attempt
-    set handle [dataHandlerPtr h]
+    set handle [::testLib::dataHandlerPtr h]
     assert {$handle == $attempt << 4}
     assert {$h == $attempt << 4}
 }
 
-alias  dataHandlerVoid  ::dlr::lib::testLib::dataHandlerVoid::call
 loop attempt 2 5 {
     set h $attempt
-    dataHandlerVoid h
+    ::testLib::dataHandlerVoid h
     assert {$h == $attempt << 4}
 }
 
 # floatSquare test
-alias  floatSquare  ::dlr::lib::testLib::floatSquare::call
 loop attempt 2 5 {
     set stuff $($attempt + 0.1)
     set correct $($stuff * $stuff)
-    set sqr [floatSquare $stuff $stuff]
+    set sqr [::testLib::floatSquare $stuff $stuff]
     puts [format {stuff=%0.2f  sqr=%0.2f} $stuff $sqr]
     assert {abs( $sqr - $correct) < 0.01}
 }
 
-alias  floatSquarePtr  ::dlr::lib::testLib::floatSquarePtr::call
 loop attempt 2 5 {
     set stuff $($attempt + 0.1)
     set old $stuff
     set correct $($stuff * $stuff)
-    floatSquarePtr stuff
+    ::testLib::floatSquarePtr stuff
     #puts [format {stuff=%0.2f  sqr=%0.2f} $old $stuff]
     assert {abs( $stuff - $correct) < 0.1}
 }
 
 # cryptAscii test
-alias  cryptAscii  ::dlr::lib::testLib::cryptAscii::call
 loop attempt 2 5 {
     set txt {modifying ascii by pointer}
     set correct {}
@@ -194,10 +184,9 @@ loop attempt 2 5 {
         scan $ch %c code
         append correct [format %c $($code + $attempt)]
     }
-    cryptAscii txt $attempt
+    ::testLib::cryptAscii txt $attempt
     assert {$txt eq $correct}
 }
-alias  cryptAsciiMalloc  ::dlr::lib::testLib::cryptAsciiMalloc::call
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
@@ -206,10 +195,9 @@ loop attempt 2 5 {
         append correct [format %c $($code + $attempt)]
     }
     set crypted {}
-    cryptAsciiMalloc $clear crypted $attempt
+    ::testLib::cryptAsciiMalloc $clear crypted $attempt
     assert {$crypted eq $correct}
 }
-alias  cryptAsciiRtn  ::dlr::lib::testLib::cryptAsciiRtn::call
 loop attempt 2 5 {
     set clear {modifying ascii by pointer}
     set correct {}
@@ -217,40 +205,36 @@ loop attempt 2 5 {
         scan $ch %c code
         append correct [format %c $($code + $attempt)]
     }
-    set cryptedRtn [cryptAsciiRtn $clear $attempt]
+    set cryptedRtn [::testLib::cryptAsciiRtn $clear $attempt]
     assert {$cryptedRtn eq $correct}
 }
 
 # mulPtr and mulMallocRtn test
-alias  mulPtr  ::dlr::lib::testLib::mulPtr::call
 loop attempt 2 5 {
     set st [list 10 11 12 13]
-    mulPtr st $attempt
+    ::testLib::mulPtr st $attempt
     lassign $st a b c d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
-alias  mulMalloc  ::dlr::lib::testLib::mulMalloc::call
 loop attempt 2 5 {
     set st {}
-    mulMalloc st $attempt
+    ::testLib::mulMalloc st $attempt
     lassign $st a b c d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
-alias  mulMallocRtn  ::dlr::lib::testLib::mulMallocRtn::call
 loop attempt 2 5 {
-    lassign [mulMallocRtn [list 10 11 12 13] $attempt] a b c d
+    lassign [::testLib::mulMallocRtn [list 10 11 12 13] $attempt] a b c d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
 }
-alias  mulPtrNat  ::dlr::lib::testLib::mulPtrNat::call
 ::dlr::lib::testLib::struct::quadT::pack-byVal-asList  ::st  [list 10 11 12 13]
 lassign {10 11 12 13} ca cb cc cd
 lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $::st]  a b c d
@@ -259,7 +243,7 @@ assert {$b == $cb}
 assert {$c == $cc}
 assert {$d == $cd}
 loop attempt 2 5 {
-    mulPtrNat ::st $attempt
+    ::testLib::mulPtrNat ::st $attempt
     set ca $( $ca * $attempt )
     set cb $( $cb * $attempt )
     set cc $( $cc * $attempt )
@@ -270,24 +254,21 @@ assert {$a == $ca}
 assert {$b == $cb}
 assert {$c == $cc}
 assert {$d == $cd}
-alias  mulMallocRtnNat  ::dlr::lib::testLib::mulMallocRtnNat::call
 loop attempt 2 5 {
-    set ::st [mulMallocRtnNat $attempt]
+    set ::st [::testLib::mulMallocRtnNat $attempt]
     lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $::st]  a b c d
     assert {$a == 10 * $attempt}
     assert {$b == 11 * $attempt}
     assert {$c == 12 * $attempt}
     assert {$d == 13 * $attempt}
-    #todo: ::dlr::freeHeap
 }
-set ::st [mulMallocRtnNat 7]
-mulPtrNat ::st 9
+set ::st [::testLib::mulMallocRtnNat 7]
+::testLib::mulPtrNat ::st 9
 lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $::st]  a b c d
 assert {$a == 10 * 7 * 9}
 assert {$b == 11 * 7 * 9}
 assert {$c == 12 * 7 * 9}
 assert {$d == 13 * 7 * 9}
-#todo: ::dlr::freeHeap
 
 puts "*** ALL TESTS PASS ***"
 
