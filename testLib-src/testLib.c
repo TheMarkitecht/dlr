@@ -141,3 +141,12 @@ void mulPtrNat(quadT* st, const int factor) {
     st->c *= factor;
     st->d *= factor;
 }
+extern quadT* mulMallocRtnNat(const int factor);
+quadT* mulMallocRtnNat(const int factor) {
+    quadT* r = (quadT*)malloc(sizeof(quadT));
+    r->a = 10 * factor;
+    r->b = 11 * factor;
+    r->c = 12 * factor;
+    r->d = 13 * factor;
+    return r;
+}

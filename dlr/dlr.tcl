@@ -697,12 +697,19 @@ proc ::dlr::generateUnpackParm {pQal  parmBare  targetNativeAddrScript} {
         set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
         append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
     }}
+# for out parms: asNative requires a doNothing instead, since the data is already under Jim's management.
+#todo: move that comment to the new comments area under the table.
     local proc strat-byPtrMemAsNativeRtn {} { uplevel 1 {
-#todo: fold this into byPtrMemOther ?
         # for return value: asNative requires a memcpy here, to bring the data under Jim's management.
-        # for out parms: asNative requires a doNothing instead, since the data is already under Jim's management.
-        set unpacker [converterName unpack $type scriptPtr $scriptForm $memAction]
-        append body "\n    $setScript  \[ $unpacker  $targetNativeAddrScript \] \n"
+        set sz [get [get ${pQal}type]::size]
+        # pointer given out by the native function must be unpacked first.
+        append body "\n    set  $ptr  \[ ::dlr::simple::ptr::unpack-byVal-asInt  \$$ptrNative  $paddingScript\] \n"
+        append body "\n    ::dlr::copyToBufferVar  $alwaysTargetNative  $sz  \$$ptr \n"
+#todo: support extensible memActions here (and elsewhere?).  pull the cleanup command name from a dict of memactions.
+        if {$memAction eq {free}} {
+            append body "\n    ::dlr::freeHeap \$$ptr \n"
+        }
+        append body "\n    return \$$alwaysTargetNative \n"
     }}
     local proc strat-byPtrSimple {} { uplevel 1 {
         set unpacker [converterName unpack $type byVal $scriptForm {}]
@@ -786,10 +793,11 @@ proc ::dlr::generateUnpackParm {pQal  parmBare  targetNativeAddrScript} {
 
     # ### compose script per the chosen strategy.
     # derive the names of the variables that might be used at run time.
-    set targetNative ${pQal}targetNative
-    set    ptrNative ${pQal}ptrNative
-    set ptrPtrNative ${pQal}ptrPtrNative
-    set          ptr ${pQal}ptr
+    set       targetNative ${pQal}targetNative
+    set alwaysTargetNative ${pQal}targetNative
+    set          ptrNative ${pQal}ptrNative
+    set       ptrPtrNative ${pQal}ptrPtrNative
+    set                ptr ${pQal}ptr
 
     # create some parameters first of all, that can be used in any strategy.
     # these work to fold some cases together, which reduces the number of strategies required.
@@ -964,7 +972,7 @@ proc ::dlr::generateStructConverters {libAlias  structTypeName} {
     lappend procs "proc  ${sQal}unpack-byVal-asDict  { $unpackerParms }  { \n$body \n}"
 
     # alias some more utility functions for this type.
-    foreach scriptForm $::dlr::struct::scriptForms {
+    foreach scriptForm {asList asDict} {
         lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}       ::dlr::struct::unpack-scriptPtr  $scriptForm  [string trimright $sQal :]"
         lappend procs "alias  ${sQal}unpack-scriptPtr-${scriptForm}-free  ::dlr::struct::unpack-scriptPtr-free  $scriptForm  [string trimright $sQal :]"
     }

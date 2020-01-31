@@ -270,6 +270,24 @@ assert {$a == $ca}
 assert {$b == $cb}
 assert {$c == $cc}
 assert {$d == $cd}
+alias  mulMallocRtnNat  ::dlr::lib::testLib::mulMallocRtnNat::call
+loop attempt 2 5 {
+    set ::st [mulMallocRtnNat $attempt]
+    lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $::st]  a b c d
+    assert {$a == 10 * $attempt}
+    assert {$b == 11 * $attempt}
+    assert {$c == 12 * $attempt}
+    assert {$d == 13 * $attempt}
+    #todo: ::dlr::freeHeap
+}
+set ::st [mulMallocRtnNat 7]
+mulPtrNat ::st 9
+lassign [::dlr::lib::testLib::struct::quadT::unpack-byVal-asList  $::st]  a b c d
+assert {$a == 10 * 7 * 9}
+assert {$b == 11 * 7 * 9}
+assert {$c == 12 * 7 * 9}
+assert {$d == 13 * 7 * 9}
+#todo: ::dlr::freeHeap
 
 puts "*** ALL TESTS PASS ***"
 
