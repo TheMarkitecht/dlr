@@ -221,6 +221,10 @@ proc ::dlr::initDlr {} {
 # suspect the native library's source or binary have changed since the last time.
 # using it on every run of the script app would cost additional startup time.
 proc ::dlr::loadLib {metaAction  libAlias  fileNamePath} {
+    if {[exists ::dlr::libHandle::$libAlias]} {
+        error "Library is already loaded: $libAlias"
+    }
+
     if {$metaAction ni {refreshMeta keepMeta}} {
         error "Invalid meta action: $metaAction"
     }
