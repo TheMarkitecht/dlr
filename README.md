@@ -46,6 +46,7 @@ See [build](build) script.
 
 ## Future Direction:
 
+* Improve UTF8 support.  Currently UTF8 is treated as ASCII.
 * Expand the packing/unpacking framework in the script package, for unions etc.
 * Test on ARM embedded systems.
 * Support callbacks from native code to script.

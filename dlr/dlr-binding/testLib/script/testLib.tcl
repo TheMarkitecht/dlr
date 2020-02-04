@@ -124,3 +124,25 @@ declareCallToNative  cmd  testLib  {byPtr quadT asNative free}  mulMallocRtnNat 
     {in     byVal   int     factor  asInt}
 }
 
+# ############ enum support ######################################
+::dlr::declareEnum  testLib  int  directions  {
+    north   {}
+    east    {}
+    south   {}
+    west    {}
+}
+
+::dlr::declareEnum  testLib  u8  dirFixed  {
+    north   {}
+    east    5
+    south   {}
+    west    {}
+}
+
+declareCallToNative  cmd  testLib  {byVal directions asInt}  dirRotate  {
+    {in     byVal   directions     d  asInt}
+}
+
+declareCallToNative  cmd  testLib  {void}  dirRotatePtr  {
+    {inOut     byPtr   directions     d  asInt  ignore}
+}

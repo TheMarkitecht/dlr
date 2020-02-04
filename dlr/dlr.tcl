@@ -297,6 +297,10 @@ proc ::dlr::isStructType {typeVarName} {
     return [string match *::struct::* $typeVarName]
 }
 
+proc ::dlr::isEnumType {typeVarName} {
+    return [string match *::enum::* $typeVarName]
+}
+
 proc ::dlr::isMemManagedType {typeVarName} {
     return $( [isStructType $typeVarName] || $typeVarName in $::dlr::stringTypes )
 }
@@ -312,10 +316,14 @@ proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
     if {[string match *::* $typeVarName]} {
         return $typeVarName
     }
-    # here we assume that libs describe only structs, never simple types.
+    # here we assume that libs describe only structs or enums, never simple types.
     set sType ::dlr::lib::${libAlias}::struct::${typeVarName}
     if {[exists ${sType}::meta]} {
         return $sType
+    }
+    set eType ::dlr::lib::${libAlias}::enum::${typeVarName}
+    if {[exists ${eType}::baseType]} {
+        return $eType
     }
     if {[exists ::dlr::simple::${typeVarName}::ffiTypeCode]} {
         return ::dlr::simple::$typeVarName
@@ -365,6 +373,50 @@ proc ::dlr::converterName {conversion fullType passMethod scriptForm memAction} 
         return [structQal $fullType]::${conversion}-${passMethod}-${scriptForm}$memSuffix
     }
     return ${fullType}::${conversion}-${passMethod}-$scriptForm
+}
+
+# this supports a value map syntax which makes it easy to paste in enums from C with minimal editing.
+proc ::dlr::declareEnum {libAlias  baseTypeSimpleBare  enumTypeBareName  valueMap} {
+    set eQal ::dlr::lib::${libAlias}::enum::${enumTypeBareName}::
+
+    if { ! [exists ::dlr::simple::${baseTypeSimpleBare}::ffiTypeCode]} {
+        error "Base type of enum is not a known simple type."
+    }
+    set baseFull [qualifyTypeName  $baseTypeSimpleBare  $libAlias  error]
+    set ${eQal}baseType     $baseFull
+    set ${eQal}ffiTypeCode  [get ${baseFull}::ffiTypeCode]
+    set ${eQal}size         [get ${baseFull}::size]
+    set ${eQal}scriptForms  [get ${baseFull}::scriptForms]
+
+    set ${eQal}toValue      [dict create]
+    set ${eQal}toName       [dict create]
+    set prev -1
+    foreach {n v} $valueMap {
+        if {$v eq {}} {
+            # empty value defaults to previous entry's value plus one, just like in C.
+            incr prev
+            set v $prev
+        }
+        set prev $v
+        dict set  ${eQal}toValue  $n  $v
+        dict set  ${eQal}toName   $v  $n
+    }
+
+    foreach scriptForm [get ${eQal}scriptForms] {
+        alias  ${eQal}pack-byVal-$scriptForm    ${baseFull}::pack-byVal-$scriptForm
+        alias  ${eQal}unpack-byVal-$scriptForm  ${baseFull}::unpack-byVal-$scriptForm
+    }
+
+    set ::${libAlias}::${enumTypeBareName}::toValue  [get ${eQal}toValue]
+    set ::${libAlias}::${enumTypeBareName}::toName   [get ${eQal}toName]
+}
+
+proc ::dlr::enumNames {qualifiedEnumName} {
+    return [dict keys ${qualifiedEnumName}::toValue]
+}
+
+proc ::dlr::enumValues {qualifiedEnumName} {
+    return [dict keys ${qualifiedEnumName}::toName]
 }
 
 proc ::dlr::parseParmDescrip {libAlias  pQal  dir  passMethod  type  name  scriptForm  memAction} {

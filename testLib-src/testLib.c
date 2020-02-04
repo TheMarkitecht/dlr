@@ -150,3 +150,14 @@ quadT* mulMallocRtnNat(const int factor) {
     r->d = 13 * factor;
     return r;
 }
+
+// enums
+typedef enum {north, east, south, west, directionCount} directions;
+extern directions dirRotate(const directions d);
+directions dirRotate(const directions d) {
+    return (d + 1) % directionCount;
+}
+extern void dirRotatePtr(directions* d);
+void dirRotatePtr(directions* d) {
+    *d = (*d + 1) % directionCount;
+}

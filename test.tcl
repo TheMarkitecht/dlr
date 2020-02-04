@@ -270,5 +270,15 @@ assert {$b == 11 * 7 * 9}
 assert {$c == 12 * 7 * 9}
 assert {$d == 13 * 7 * 9}
 
+# enum test
+assert {$::testLib::directions::toValue(west) == 3}
+assert {$::testLib::directions::toName(3) == {west}}
+assert {$::testLib::dirFixed::toValue(west) == 7}
+assert {$::testLib::dirFixed::toName(7) == {west}}
+assert {[::testLib::dirRotate $::testLib::dirFixed::toValue(west)] == $::testLib::dirFixed::toValue(north)}
+set d $::testLib::dirFixed::toValue(west)
+::testLib::dirRotatePtr  d
+assert {$d == $::testLib::dirFixed::toValue(north)}
+
 puts "*** ALL TESTS PASS ***"
 
