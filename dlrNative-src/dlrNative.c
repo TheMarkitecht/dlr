@@ -36,6 +36,14 @@ along with dlr.  If not, see <https://www.gnu.org/licenses/>.
     #include <gtk/gtk.h>
     #include <girepository.h>
 #endif
+/*todo: remove from dlrNative the special support for GNOME.  turns out it's not needed.
+ BUT first make sure we can do without it when passing unions by value.
+ GNOME does that in at least 6 places, some are in Widget class!
+ libffi has serious trouble with that:
+ https://github.com/libffi/libffi/issues/33
+ https://stackoverflow.com/questions/40354500/how-do-i-create-an-ffi-type-that-represents-a-union
+ issue is tagged to fix in libffi 4.0 but that's years away from 2020.
+*/
 
 #define DLR_VERSION_STRING "0.2"
 
@@ -174,6 +182,9 @@ int sizeOfTypes(Jim_Interp* itp, int objc, Jim_Obj * const objv[]) {
         Jim_NewStringObj(itp, "double", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(double)),
         Jim_NewStringObj(itp, "longDouble", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(long double)),
         Jim_NewStringObj(itp, "ffiArg", -1),        Jim_NewIntObj(itp, (jim_wide)sizeof(ffi_arg)),
+#ifdef BUILD_GIZMO
+        Jim_NewStringObj(itp, "GIArgument", -1),    Jim_NewIntObj(itp, (jim_wide)sizeof(GIArgument)),
+#endif
     };
     int numTypes = sizeof(lens) / sizeof(Jim_Obj*);
     for (int i = 0; i < numTypes; i++) {

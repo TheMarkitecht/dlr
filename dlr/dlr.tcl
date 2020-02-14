@@ -44,7 +44,10 @@ proc ::dlr::initDlr {} {
     set ::dlr::floatEndian          -float$::dlr::endian
     set ::dlr::bindingDir           [file join [file dirname $::dlr::scriptPkg] dlr-binding]
     ::dlr::refreshMeta              0
-    set ::dlr::native::sizeOfSimpleTypes    [::dlr::native::sizeOfTypes] ;# scripts should avoid using this variable directly.
+#todo: verify every built-in type has categories initialized.
+    set ::dlr::categories           [list integral signedInt unsignedInt specificInt nonspecificInt \
+                                        enum float string struct union pointer \
+                                        hasMetaBlob requiresMemAction]
 
     set ::dlr::directions           [list in out inOut] ;# the user-specified directions of data flow.  these are for parms only; does not include "return" direction for function return values.
     set ::dlr::dlrFlags             [dict create dir_in 1 dir_out 2 dir_inOut 3 array 8]
@@ -57,21 +60,25 @@ proc ::dlr::initDlr {} {
 
     # bit and byte lengths of simple types, for use in converters.  byte lengths are useful for
     # dlr's converters.  bit lengths are more useful for Jim's pack/unpack, but those are slower.
-    foreach typ [dict keys $::dlr::native::sizeOfSimpleTypes] {
-        set ::dlr::simple::${typ}::size       $::dlr::native::sizeOfSimpleTypes($typ)
-        set ::dlr::simple::${typ}::bits       $(8 * [get ::dlr::simple::${typ}::size])
+    dict for {typ sizeBytes} [::dlr::native::sizeOfTypes]  {
+        set ::dlr::simple::${typ}::size       $sizeBytes
+        set ::dlr::simple::${typ}::bits       $(8 * $sizeBytes)
     }
     foreach size {8 16 32 64} {
         foreach sign {u i} {
             set ::dlr::simple::${sign}${size}::size  $($size / 8)
             set ::dlr::simple::${sign}${size}::bits  $size
         }
+        set ::dlr::simple::i${size}::categories      [list integral   signedInt specificInt]
+        set ::dlr::simple::u${size}::categories      [list integral unsignedInt specificInt]
     }
     # sizes of unsigned ints of unspecified length.  assume they're the same length as signed ones.
     foreach signed {short int long longLong sSizeT} \
         unsigned {uShort uInt uLong uLongLong sizeT} {
         set ::dlr::simple::${unsigned}::size  [get ::dlr::simple::${signed}::size]
         set ::dlr::simple::${unsigned}::bits  [get ::dlr::simple::${signed}::bits]
+        set ::dlr::simple::${signed}::categories    [list integral   signedInt nonspecificInt]
+        set ::dlr::simple::${unsigned}::categories  [list integral unsignedInt nonspecificInt]
     }
     set ::dlr::simple::void::size  0
     set ::dlr::simple::void::bits  0
@@ -135,11 +142,14 @@ proc ::dlr::initDlr {} {
     }
     # overwrite that with a few special cases such as floating point and struct.
     set ::dlr::struct::scriptForms              [list asList asDict asNative]
+    set ::dlr::union::scriptForms               [list asNative]
     foreach typ {float double longDouble} {
         set ::dlr::simple::${typ}::scriptForms  [list asDouble]
+        set ::dlr::simple::${typ}::categories   [list float]
     }
     set ::dlr::simple::ascii::scriptForms       [list asString]
     set ::dlr::simple::void::scriptForms        [list]
+    set ::dlr::simple::void::categories         [list]
 
     # memActions.  these are different ways to automatically manage the memory block
     # targeted by a pointer passed through 'out' or 'inOut' direction, or as a
@@ -185,6 +195,7 @@ proc ::dlr::initDlr {} {
     # that leads to insidious bugs that seem totally unrelated to the real cause.
     alias  ::dlr::simple::ptr::pack-null    ::dlr::native::pack-null
     alias  ::dlr::pack-null                 ::dlr::native::pack-null
+    set    ::dlr::simple::ptr::categories   [list pointer]
 
     # this format string makes [format] display a pointer (asInt) in a readable way.
     # it adapts to the machine's word size etc.
@@ -196,8 +207,16 @@ proc ::dlr::initDlr {} {
     set ::dlr::nullPtrFlag          _#_nullPtrFlag_#_
 
     # string support.
-    set ::dlr::stringTypes [list ::dlr::simple::ascii]
-    #todo: support more encodings, like utf8.  add them to stringTypes.
+    set ::dlr::simple::ascii::categories        [list string requiresMemAction]
+    #todo: support more encodings, like utf8.
+
+    # structure and union support.
+    set ::dlr::struct::categories       [list struct hasMetaBlob requiresMemAction]
+    set ::dlr::union::categories        [list union  hasMetaBlob requiresMemAction]
+#todo: more support for unions throughout.  borrow code from gizmo's gi.tcl.
+
+    # enum support.
+    set ::dlr::enum::categories         [list enum]
 
     # compiler support.
     # in the current version, all features work with either gcc or clang.
@@ -258,6 +277,8 @@ proc ::dlr::typedef {existingType  name} {
     set ::dlr::simple::${name}::bits [get ::dlr::simple::${existingType}::bits]
     # scriptForms list.
     set ::dlr::simple::${name}::scriptForms  [get ::dlr::simple::${existingType}::scriptForms]
+    # categories.
+    set ::dlr::simple::${name}::categories   [get ::dlr::simple::${existingType}::categories]
     # converter aliases.
     foreach form [get ::dlr::simple::${name}::scriptForms] {
         alias  ::dlr::simple::${name}::pack-byVal-$form    ::dlr::simple::${existingType}::pack-byVal-$form
@@ -282,27 +303,15 @@ proc ::dlr::fnAddr {fnName libAlias} {
 
 # returns true if the given fully qualified type name specifies a type known to dlr.
 # that is, it is a built-in type, or has been previously declared.
-proc ::dlr::isKnownType {typeVarName} {
+proc ::dlr::isKnownType {fullType} {
     # all valid types have a specific size in bytes, OR they are a string type.
-    return $( [exists ${typeVarName}::size] || $typeVarName in $::dlr::stringTypes )
+    return [exists ${fullType}::categories]
 }
 
-proc ::dlr::validateTypeName {typeVarName} {
-    if { ! [::dlr::isKnownType $typeVarName]} {
-        error "Type is not declared, or not supported: $typeVarName"
+proc ::dlr::validateTypeName {fullType} {
+    if { ! [::dlr::isKnownType $fullType]} {
+        error "Type is not declared, or not supported: $fullType"
     }
-}
-
-proc ::dlr::isStructType {typeVarName} {
-    return [string match *::struct::* $typeVarName]
-}
-
-proc ::dlr::isEnumType {typeVarName} {
-    return [string match *::enum::* $typeVarName]
-}
-
-proc ::dlr::isMemManagedType {typeVarName} {
-    return $( [isStructType $typeVarName] || $typeVarName in $::dlr::stringTypes )
 }
 
 # qualify any unqualified type name.
@@ -312,41 +321,45 @@ proc ::dlr::isMemManagedType {typeVarName} {
 # otherwise, notFoundAction is implemented.  that can be "error" (the default),
 # or an empty string to ignore the problem and return an empty string instead.
 # after qualifyTypeName, caller may use selectTypeMeta to fetch the required info for dlrNative.
-proc ::dlr::qualifyTypeName {typeVarName  libAlias  {notFoundAction error}} {
-    if {[string match *::* $typeVarName]} {
-        return $typeVarName
+proc ::dlr::qualifyTypeName {type  libAlias  {notFoundAction error}} {
+    if {[string match *::* $type]} {
+        return $type
     }
-    # here we assume that libs describe only structs or enums, never simple types.
-    set sType ::dlr::lib::${libAlias}::struct::${typeVarName}
+    # here we assume that libs describe only structs, enums, or unions, never simple types.
+    set sType ::dlr::lib::${libAlias}::struct::${type} ;# also covers unions.
     if {[exists ${sType}::meta]} {
         return $sType
     }
-    set eType ::dlr::lib::${libAlias}::enum::${typeVarName}
+    set eType ::dlr::lib::${libAlias}::enum::${type}
     if {[exists ${eType}::baseType]} {
         return $eType
     }
-    if {[exists ::dlr::simple::${typeVarName}::ffiTypeCode]} {
-        return ::dlr::simple::$typeVarName
+    if {[exists ::dlr::simple::${type}::ffiTypeCode]} {
+        return ::dlr::simple::$type
     }
     if {$notFoundAction eq {error}} {
-        error "Unqualified type name could not be resolved: $typeVarName"
+        error "Unqualified type name could not be resolved: $type"
     }
     return {}
 }
 
 proc ::dlr::selectTypeMeta {type} {
-    if {[isStructType $type]} {
+    if {{hasMetaBlob} in [get ${type}::categories]} {
         return ${type}::meta ;# return string name of variable holding struct type's metadata blob.
     }
     return ${type}::ffiTypeCode ;# return integer ffiTypeCode.
 }
 
-proc ::dlr::validateScriptForm {fullType scriptForm} {
+proc ::dlr::validScriptForms {fullType} {
     if {$fullType eq {::dlr::simple::void}} {
         return
     }
-    if {[isStructType $fullType]} {
-        set fullType ::dlr::struct
+    return [get ${fullType}::scriptForms]
+}
+
+proc ::dlr::validateScriptForm {fullType scriptForm} {
+    if {$fullType eq {::dlr::simple::void}} {
+        return
     }
     if {$scriptForm ni [get ${fullType}::scriptForms]} {
         error "Invalid scriptForm was given for type: $fullType"
@@ -368,7 +381,9 @@ proc ::dlr::nsJoin {parts} {
 }
 
 proc ::dlr::converterName {conversion fullType passMethod scriptForm memAction} {
-    if {[isMemManagedType $fullType]} {
+    if {{requiresMemAction} in [get ${fullType}::categories]} {
+        # types with requiresMemAction require a memAction to be specified during parm declaration.
+        # it is matched to the one specified in each converter's name.
         set memSuffix $( $memAction eq {}  ?  {}  :  "-$memAction" )
         return [structQal $fullType]::${conversion}-${passMethod}-${scriptForm}$memSuffix
     }
@@ -387,6 +402,7 @@ proc ::dlr::declareEnum {libAlias  baseTypeSimpleBare  enumTypeBareName  valueMa
     set ${eQal}ffiTypeCode  [get ${baseFull}::ffiTypeCode]
     set ${eQal}size         [get ${baseFull}::size]
     set ${eQal}scriptForms  [get ${baseFull}::scriptForms]
+    set ${eQal}categories   [concat  $::dlr::enum::categories  [get ${baseFull}::categories]]
 
     set ${eQal}toValue      [dict create]
     set ${eQal}toName       [dict create]
@@ -437,7 +453,18 @@ proc ::dlr::parseParmDescrip {libAlias  pQal  dir  passMethod  type  name  scrip
     # be used for padding the return value on some machines.
     # this is always ptr for passMethods that use pointers.  in those cases
     # libffi is unaware of the actual target type.
-    set ${pQal}passType $(  $passMethod eq {byVal}  ?  $fullType  :  {::dlr::simple::ptr} )
+    set pt $(  $passMethod eq {byVal}  ?  $fullType  :  {::dlr::simple::ptr} )
+    set ${pQal}passType $pt
+
+    # prevent passing unions by value.
+    # GNOME does that in at least 6 places, some are in Widget class!
+    # libffi has serious trouble with that:
+    # https://github.com/libffi/libffi/issues/33
+    # https://stackoverflow.com/questions/40354500/how-do-i-create-an-ffi-type-that-represents-a-union
+    # issue is tagged to fix in libffi 4.0 but that's years away from 2020.
+    if {{union} in [get ${pt}::categories]} {
+        error "libffi doesn't support passing/returning any unions by value: $pt"
+    }
 
     validateScriptForm $fullType $scriptForm
     set ${pQal}scriptForm  $scriptForm
@@ -790,7 +817,7 @@ proc ::dlr::generateUnpackParm {pQal  parmBare  targetNativeAddrScript} {
 
     # ### decide strategy.
     # detect or derive certain conditions which can be used during strategy selection.
-    set managedType  $( [isMemManagedType $type] ? {yes} : {no} )
+    set managedType  $( {requiresMemAction} in [get ${type}::categories]  ?  {yes}  :  {no} )
 
     # match actual situation to one row of this dispatch table of different cases.
     # the matching row indicates the usable strategy.
@@ -847,6 +874,8 @@ proc ::dlr::generateUnpackParm {pQal  parmBare  targetNativeAddrScript} {
     }
     # error if no strategy was found.
     if {$foundStrat eq {}} {
+puts {dir  passMethod  scriptForm  managedType}
+puts "$dir  $passMethod  $scriptForm  $managedType"
         error "Unpacking strategy not found due to unsupported configuration for parameter: $pQal"
     }
 
@@ -895,9 +924,11 @@ proc ::dlr::declareStructType {scriptAction  libAlias  structTypeName  membersDe
 
 proc ::dlr::configureStructType {libAlias  structTypeName  membersDescrip} {
     set sQal ::dlr::lib::${libAlias}::struct::${structTypeName}::
+    set ${sQal}categories   $::dlr::struct::categories
+    set ${sQal}scriptForms  $::dlr::struct::scriptForms
 
     # unpack metadata from the given declaration and memorize it.
-    #todo: support nested structs.
+#todo: support nested structs.  copy their members into this struct, adding the correct offset.
     set ${sQal}memberOrder [list]
     foreach {mDescrip} $membersDescrip {
         lassign $mDescrip mType mName mScriptForm
